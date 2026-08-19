@@ -43,13 +43,13 @@ Then open the URL Vite prints (usually `http://localhost:5173/`).
 
 The GitHub Actions workflow builds on every push to `main` and deploys `dist/`.
 
-Repo: `https://github.com/hkulas/PPolish`. The site is served at `https://hkulas.github.io/PPolish/`.
+Repo: `https://github.com/hkulas/IlovePauli`. The site is served at `https://hkulas.github.io/IlovePauli/`.
 
 1. Push this project to `main`.
 2. In the repo: **Settings → Pages → Build and deployment → Source: GitHub Actions**.
 3. Wait for the **Deploy to GitHub Pages** workflow to finish.
 
-A production build (also used in CI) prefixes asset URLs with `/PPolish/`:
+A production build (also used in CI) prefixes asset URLs with `/IlovePauli/`:
 
 ```bash
 GITHUB_PAGES=true npm run build
