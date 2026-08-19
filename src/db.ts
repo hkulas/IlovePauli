@@ -1,0 +1,155 @@
+import { openDB, type DBSchema, type IDBPDatabase } from "idb";
+import { newTopic, type BackupFile, type Topic, type Word } from "./types";
+
+interface WordDB extends DBSchema {
+  topics: {
+    key: string;
+    value: Topic;
+  };
+  words: {
+    key: string;
+    value: Word;
+    indexes: { "by-topic": string; "by-due": number };
+  };
+}
+
+const DB_NAME = "slowka";
+const DB_VERSION = 1;
+
+let dbPromise: Promise<IDBPDatabase<WordDB>> | undefined;
+
+function getDb(): Promise<IDBPDatabase<WordDB>> {
+  if (!dbPromise) {
+    dbPromise = openDB<WordDB>(DB_NAME, DB_VERSION, {
+      upgrade(db) {
+        db.createObjectStore("topics", { keyPath: "id" });
+        const words = db.createObjectStore("words", { keyPath: "id" });
+        words.createIndex("by-topic", "topicId");
+        words.createIndex("by-due", "nextReviewAt");
+      },
+    });
+  }
+  return dbPromise;
+}
+
+const SEED_TOPICS = ["Food", "Verbs", "Travel", "Everyday"];
+
+export async function ensureSeeded(): Promise<void> {
+  const db = await getDb();
+  const count = await db.count("topics");
+  if (count > 0) return;
+  const tx = db.transaction("topics", "readwrite");
+  for (const name of SEED_TOPICS) {
+    await tx.store.put(newTopic(name));
+  }
+  await tx.done;
+}
+
+export async function listTopics(): Promise<Topic[]> {
+  const db = await getDb();
+  const topics = await db.getAll("topics");
+  return topics.sort((a, b) => a.name.localeCompare(b.name, "en"));
+}
+
+export async function listWords(): Promise<Word[]> {
+  const db = await getDb();
+  const words = await db.getAll("words");
+  return words.sort((a, b) => a.english.localeCompare(b.english, "en"));
+}
+
+export async function putTopic(topic: Topic): Promise<void> {
+  const db = await getDb();
+  await db.put("topics", topic);
+}
+
+export async function putWord(word: Word): Promise<void> {
+  const db = await getDb();
+  await db.put("words", word);
+}
+
+export async function deleteWord(id: string): Promise<void> {
+  const db = await getDb();
+  await db.delete("words", id);
+}
+
+export async function countWordsInTopic(topicId: string): Promise<number> {
+  const db = await getDb();
+  return db.countFromIndex("words", "by-topic", topicId);
+}
+
+export async function deleteTopic(id: string): Promise<void> {
+  const n = await countWordsInTopic(id);
+  if (n > 0) {
+    throw new Error(`This topic still has ${n} word${n === 1 ? "" : "s"}. Move or delete them first.`);
+  }
+  const db = await getDb();
+  await db.delete("topics", id);
+}
+
+function isTopic(value: unknown): value is Topic {
+  if (typeof value !== "object" || value === null) return false;
+  const t = value as Topic;
+  return typeof t.id === "string" && typeof t.name === "string";
+}
+
+function isWord(value: unknown): value is Word {
+  if (typeof value !== "object" || value === null) return false;
+  const w = value as Word;
+  return (
+    typeof w.id === "string" &&
+    typeof w.english === "string" &&
+    typeof w.polish === "string" &&
+    typeof w.topicId === "string" &&
+    typeof w.createdAt === "number" &&
+    typeof w.easeFactor === "number" &&
+    typeof w.intervalDays === "number" &&
+    typeof w.repetitions === "number" &&
+    typeof w.nextReviewAt === "number"
+  );
+}
+
+export function parseBackup(raw: unknown): BackupFile {
+  if (typeof raw !== "object" || raw === null) {
+    throw new Error("Backup file is not an object.");
+  }
+  const data = raw as Partial<BackupFile>;
+  if (data.version !== 1) {
+    throw new Error("Unknown backup version. Expected version 1.");
+  }
+  if (!Array.isArray(data.topics) || !Array.isArray(data.words)) {
+    throw new Error("Backup must include topics and words arrays.");
+  }
+  if (!data.topics.every(isTopic) || !data.words.every(isWord)) {
+    throw new Error("Backup contains an invalid topic or word.");
+  }
+  return {
+    version: 1,
+    exportedAt: typeof data.exportedAt === "string" ? data.exportedAt : new Date().toISOString(),
+    topics: data.topics,
+    words: data.words,
+  };
+}
+
+export async function exportBackup(): Promise<BackupFile> {
+  const [topics, words] = await Promise.all([listTopics(), listWords()]);
+  return {
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    topics,
+    words,
+  };
+}
+
+export async function importBackup(backup: BackupFile): Promise<void> {
+  const db = await getDb();
+  const tx = db.transaction(["topics", "words"], "readwrite");
+  await tx.objectStore("topics").clear();
+  await tx.objectStore("words").clear();
+  for (const topic of backup.topics) {
+    await tx.objectStore("topics").put(topic);
+  }
+  for (const word of backup.words) {
+    await tx.objectStore("words").put(word);
+  }
+  await tx.done;
+}
