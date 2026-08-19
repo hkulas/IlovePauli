@@ -1,5 +1,6 @@
 import { openDB, type DBSchema, type IDBPDatabase } from "idb";
-import { newTopic, type BackupFile, type Topic, type Word } from "./types";
+import { SEED_TOPIC_NAMES, SEED_WORDS } from "./seed";
+import { newTopic, newWordDraft, type BackupFile, type Topic, type Word } from "./types";
 
 interface WordDB extends DBSchema {
   topics: {
@@ -32,15 +33,22 @@ function getDb(): Promise<IDBPDatabase<WordDB>> {
   return dbPromise;
 }
 
-const SEED_TOPICS = ["Food", "Verbs", "Travel", "Everyday"];
-
 export async function ensureSeeded(): Promise<void> {
   const db = await getDb();
-  const count = await db.count("topics");
-  if (count > 0) return;
-  const tx = db.transaction("topics", "readwrite");
-  for (const name of SEED_TOPICS) {
-    await tx.store.put(newTopic(name));
+  if ((await db.count("words")) > 0) return;
+
+  const tx = db.transaction(["topics", "words"], "readwrite");
+  await tx.objectStore("topics").clear();
+  const topicIdByName = new Map<string, string>();
+  for (const name of SEED_TOPIC_NAMES) {
+    const topic = newTopic(name);
+    topicIdByName.set(name, topic.id);
+    await tx.objectStore("topics").put(topic);
+  }
+  for (const row of SEED_WORDS) {
+    const topicId = topicIdByName.get(row.topic);
+    if (!topicId) throw new Error(`Missing seed topic: ${row.topic}`);
+    await tx.objectStore("words").put(newWordDraft(row.english, row.polish, topicId));
   }
   await tx.done;
 }

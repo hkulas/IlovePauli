@@ -6,8 +6,10 @@ Words are stored in **this browser** (IndexedDB). GitHub Pages cannot run a serv
 
 ## Add words
 
-1. Open **Topics** if you want a group other than the defaults (Food, Verbs, Travel, Everyday).
-2. Open **Words**. Type the English, the Polish, pick a topic, tap **Add**.
+The first notebook pages (Everyday, More words, BRI 1, Memrise 1) load automatically the first time this browser has no words.
+
+1. Open **Words** to add more. Type the English, the Polish, pick a topic, tap **Add**.
+2. Open **Topics** to add groups (or rename the starter ones).
 3. Use the character bar for `ą ć ę ł ń ó ś ź ż`.
 
 ## Study
@@ -41,14 +43,13 @@ Then open the URL Vite prints (usually `http://localhost:5173/`).
 
 The GitHub Actions workflow builds on every push to `main` and deploys `dist/`.
 
-1. Create a GitHub repository named **`word`** (the site is served at `https://<you>.github.io/word/`).
-2. Push this project to `main`.
-3. In the repo: **Settings → Pages → Build and deployment → Source: GitHub Actions**.
-4. Wait for the **Deploy to GitHub Pages** workflow to finish.
+Repo: `https://github.com/hkulas/PPolish`. The site is served at `https://hkulas.github.io/PPolish/`.
 
-If the repo is not named `word`, change the `base` path in `vite.config.ts` to `/<repo-name>/`.
+1. Push this project to `main`.
+2. In the repo: **Settings → Pages → Build and deployment → Source: GitHub Actions**.
+3. Wait for the **Deploy to GitHub Pages** workflow to finish.
 
-A production build (also used in CI) prefixes asset URLs with `/word/`:
+A production build (also used in CI) prefixes asset URLs with `/PPolish/`:
 
 ```bash
 GITHUB_PAGES=true npm run build
