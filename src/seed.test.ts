@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { SEED_TOPIC_NAMES, SEED_WORDS } from "./seed";
+import { LEGACY_TOPIC_RENAMES, SEED_TOPIC_NAMES, SEED_WORDS } from "./seed";
 
 describe("SEED_WORDS", () => {
   it("has english, polish, and a known topic on every row", () => {
@@ -32,5 +32,10 @@ describe("SEED_WORDS", () => {
   it("does not repeat the same english+polish pair", () => {
     const keys = SEED_WORDS.map((w) => `${w.english}\0${w.polish}`);
     expect(new Set(keys).size).toBe(keys.length);
+  });
+
+  it("renames the old notebook section titles", () => {
+    expect(LEGACY_TOPIC_RENAMES.Everyday).toBe("Shop Walk");
+    expect(LEGACY_TOPIC_RENAMES["More words"]).toBe("Car trip");
   });
 });

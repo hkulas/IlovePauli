@@ -1,6 +1,11 @@
-export const SEED_TOPIC_NAMES = ["Everyday", "More words", "BRI 1", "Memrise 1"] as const;
+export const SEED_TOPIC_NAMES = ["Shop Walk", "Car trip", "BRI 1", "Memrise 1"] as const;
 
 export type SeedTopicName = (typeof SEED_TOPIC_NAMES)[number];
+
+export const LEGACY_TOPIC_RENAMES: Record<string, SeedTopicName> = {
+  Everyday: "Shop Walk",
+  "More words": "Car trip",
+};
 
 export type SeedWord = {
   english: string;
@@ -10,29 +15,29 @@ export type SeedWord = {
 
 /** First notebook pages. Loaded only when this browser has no words yet. */
 export const SEED_WORDS: SeedWord[] = [
-  { english: "shop", polish: "sklep", topic: "Everyday" },
-  { english: "walk", polish: "spacer", topic: "Everyday" },
-  { english: "how do you say", polish: "jak się mówi", topic: "Everyday" },
-  { english: "how to say", polish: "jak powiedzieć", topic: "Everyday" },
-  { english: "because", polish: "ponieważ", topic: "Everyday" },
-  { english: "I want", polish: "chcieć", topic: "Everyday" },
-  { english: "buy", polish: "kupić", topic: "Everyday" },
-  { english: "notebook", polish: "zeszyt", topic: "Everyday" },
-  { english: "towel", polish: "ręcznik", topic: "Everyday" },
-  { english: "path", polish: "droga", topic: "Everyday" },
-  { english: "expensive", polish: "drogi", topic: "Everyday" },
+  { english: "shop", polish: "sklep", topic: "Shop Walk" },
+  { english: "walk", polish: "spacer", topic: "Shop Walk" },
+  { english: "how do you say", polish: "jak się mówi", topic: "Shop Walk" },
+  { english: "how to say", polish: "jak powiedzieć", topic: "Shop Walk" },
+  { english: "because", polish: "ponieważ", topic: "Shop Walk" },
+  { english: "I want", polish: "chcieć", topic: "Shop Walk" },
+  { english: "buy", polish: "kupić", topic: "Shop Walk" },
+  { english: "notebook", polish: "zeszyt", topic: "Shop Walk" },
+  { english: "towel", polish: "ręcznik", topic: "Shop Walk" },
+  { english: "path", polish: "droga", topic: "Shop Walk" },
+  { english: "expensive", polish: "drogi", topic: "Shop Walk" },
 
-  { english: "car trip", polish: "wycieczka samochodowa", topic: "More words" },
-  { english: "different", polish: "inny", topic: "More words" },
-  { english: "nice", polish: "ładne", topic: "More words" },
-  { english: "straight", polish: "prosto", topic: "More words" },
-  { english: "think", polish: "myśl", topic: "More words" },
-  { english: "some", polish: "jakiś", topic: "More words" },
-  { english: "a bit", polish: "trochę", topic: "More words" },
-  { english: "end", polish: "koniec", topic: "More words" },
-  { english: "tree", polish: "drzewo", topic: "More words" },
-  { english: "hair", polish: "włosy", topic: "More words" },
-  { english: "word", polish: "słowo", topic: "More words" },
+  { english: "car trip", polish: "wycieczka samochodowa", topic: "Car trip" },
+  { english: "different", polish: "inny", topic: "Car trip" },
+  { english: "nice", polish: "ładne", topic: "Car trip" },
+  { english: "straight", polish: "prosto", topic: "Car trip" },
+  { english: "think", polish: "myśl", topic: "Car trip" },
+  { english: "some", polish: "jakiś", topic: "Car trip" },
+  { english: "a bit", polish: "trochę", topic: "Car trip" },
+  { english: "end", polish: "koniec", topic: "Car trip" },
+  { english: "tree", polish: "drzewo", topic: "Car trip" },
+  { english: "hair", polish: "włosy", topic: "Car trip" },
+  { english: "word", polish: "słowo", topic: "Car trip" },
 
   { english: "what does it mean", polish: "co to znaczy", topic: "BRI 1" },
   { english: "how do you say this in Polish", polish: "jak to się mówi po polsku", topic: "BRI 1" },

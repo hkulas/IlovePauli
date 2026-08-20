@@ -1,5 +1,5 @@
 import { openDB, type DBSchema, type IDBPDatabase } from "idb";
-import { SEED_TOPIC_NAMES, SEED_WORDS } from "./seed";
+import { LEGACY_TOPIC_RENAMES, SEED_TOPIC_NAMES, SEED_WORDS } from "./seed";
 import { newTopic, newWordDraft, type BackupFile, type Topic, type Word } from "./types";
 
 interface WordDB extends DBSchema {
@@ -35,20 +35,35 @@ function getDb(): Promise<IDBPDatabase<WordDB>> {
 
 export async function ensureSeeded(): Promise<void> {
   const db = await getDb();
-  if ((await db.count("words")) > 0) return;
-
-  const tx = db.transaction(["topics", "words"], "readwrite");
-  await tx.objectStore("topics").clear();
-  const topicIdByName = new Map<string, string>();
-  for (const name of SEED_TOPIC_NAMES) {
-    const topic = newTopic(name);
-    topicIdByName.set(name, topic.id);
-    await tx.objectStore("topics").put(topic);
+  if ((await db.count("words")) === 0) {
+    const tx = db.transaction(["topics", "words"], "readwrite");
+    await tx.objectStore("topics").clear();
+    const topicIdByName = new Map<string, string>();
+    for (const name of SEED_TOPIC_NAMES) {
+      const topic = newTopic(name);
+      topicIdByName.set(name, topic.id);
+      await tx.objectStore("topics").put(topic);
+    }
+    for (const row of SEED_WORDS) {
+      const topicId = topicIdByName.get(row.topic);
+      if (!topicId) throw new Error(`Missing seed topic: ${row.topic}`);
+      await tx.objectStore("words").put(newWordDraft(row.english, row.polish, topicId));
+    }
+    await tx.done;
   }
-  for (const row of SEED_WORDS) {
-    const topicId = topicIdByName.get(row.topic);
-    if (!topicId) throw new Error(`Missing seed topic: ${row.topic}`);
-    await tx.objectStore("words").put(newWordDraft(row.english, row.polish, topicId));
+  await renameLegacyTopics();
+}
+
+async function renameLegacyTopics(): Promise<void> {
+  const db = await getDb();
+  const topics = await db.getAll("topics");
+  const updates = topics.filter((topic) => LEGACY_TOPIC_RENAMES[topic.name]);
+  if (updates.length === 0) return;
+  const tx = db.transaction("topics", "readwrite");
+  for (const topic of updates) {
+    const name = LEGACY_TOPIC_RENAMES[topic.name];
+    if (!name) continue;
+    await tx.store.put({ ...topic, name });
   }
   await tx.done;
 }
