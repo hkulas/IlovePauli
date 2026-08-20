@@ -1,7 +1,7 @@
 import { gradeAnswer } from "./check";
 import * as db from "./db";
 import { keepIfTopicExists } from "./filters";
-import { pickSession, review } from "./srs";
+import { pickSession, review, shouldRequeueInSession } from "./srs";
 import "./style.css";
 import {
   SESSION_CAP,
@@ -56,6 +56,8 @@ const state = {
   editingWordId: null as string | null,
   editingTopicId: null as string | null,
   wordFilter: "all" as string | "all",
+  extraRequeues: {} as Record<string, number>,
+  cram: false,
 };
 
 async function reload(): Promise<void> {
@@ -77,12 +79,30 @@ function topicName(id: string): string {
   return state.topics.find((t) => t.id === id)?.name ?? "Unknown topic";
 }
 
+function wordsInStudyTopic(): Word[] {
+  return state.words.filter((w) => state.studyTopic === "all" || w.topicId === state.studyTopic);
+}
+
 function startSession(): void {
+  state.cram = false;
   state.session = pickSession(state.words, state.studyTopic, SESSION_CAP);
   state.index = 0;
   state.stats = { correct: 0, almost: 0, wrong: 0 };
   state.lastGrade = null;
+  state.extraRequeues = {};
   state.phase = state.session.length === 0 ? "idle" : "prompt";
+}
+
+function startCram(): void {
+  const pool = wordsInStudyTopic();
+  state.cram = true;
+  state.session = pool.slice(0, SESSION_CAP);
+  state.index = 0;
+  state.stats = { correct: 0, almost: 0, wrong: 0 };
+  state.lastGrade = null;
+  state.extraRequeues = {};
+  state.phase = state.session.length === 0 ? "idle" : "prompt";
+  if (state.phase === "idle") state.flash = "No words in this topic yet.";
 }
 
 function currentCard(): Word | undefined {
@@ -154,7 +174,11 @@ function studyHtml(): string {
       <section class="card empty">
         <h2>Session done</h2>
         <p>${correct} exact, ${almost} almost, ${wrong} to retry later.</p>
-        <p class="hint">Wrong cards come back tomorrow. Correct ones wait a little longer.</p>
+        <p class="hint">${
+          state.cram
+            ? "This was extra practice — the real schedule did not change."
+            : "New and missed words come back in this session, then in about 10 minutes, then tomorrow."
+        }</p>
         <button type="button" class="primary" data-action="restart">Study again</button>
       </section>
     `;
@@ -166,8 +190,12 @@ function studyHtml(): string {
       <label for="study-topic">Topic</label>
       <select id="study-topic">${topicOptions(state.studyTopic, true)}</select>
       <section class="empty">
-        <p>Nothing due in this topic right now.</p>
-        <button type="button" class="ghost" data-nav="words">Add words</button>
+        <p>Nothing due in this topic right now. New cards return in about 10 minutes after the first looks.</p>
+        ${
+          wordsInStudyTopic().length > 0
+            ? `<button type="button" class="primary" data-action="cram">Practice this topic anyway</button>`
+            : `<button type="button" class="ghost" data-nav="words">Add words</button>`
+        }
       </section>
     `;
   }
@@ -193,7 +221,7 @@ function studyHtml(): string {
       `;
 
   return `
-    <p class="lead">${remaining} left in this session</p>
+      <p class="lead">${remaining} left in this session${state.cram ? " (extra practice)" : ""}</p>
     <label for="study-topic">Topic</label>
     <select id="study-topic">${topicOptions(state.studyTopic, true)}</select>
     <section class="card prompt-card">
@@ -331,6 +359,11 @@ function bind(): void {
     });
   });
 
+  app.querySelector<HTMLButtonElement>('[data-action="cram"]')?.addEventListener("click", () => {
+    startCram();
+    render();
+  });
+
   app.querySelector<HTMLButtonElement>('[data-action="restart"]')?.addEventListener("click", () => {
     startSession();
     if (state.phase === "idle") state.flash = "Still nothing due.";
@@ -358,12 +391,20 @@ function bind(): void {
     });
     try {
       const grade = gradeAnswer(card.polish, input.value);
-      const updated = review(card, grade);
-      await db.putWord(updated);
-      state.words = state.words.map((w) => (w.id === updated.id ? updated : w));
+      const updated = state.cram ? card : review(card, grade);
+      if (!state.cram) {
+        await db.putWord(updated);
+        state.words = state.words.map((w) => (w.id === updated.id ? updated : w));
+      }
       state.session[state.index] = updated;
       state.lastGrade = grade;
       state.stats[grade] += 1;
+      const extras = state.extraRequeues[updated.id] ?? 0;
+      const alreadyAhead = state.session.slice(state.index + 1).some((w) => w.id === updated.id);
+      if (!state.cram && !alreadyAhead && shouldRequeueInSession(updated, extras)) {
+        state.session.push(updated);
+        state.extraRequeues[updated.id] = extras + 1;
+      }
     } catch (err) {
       state.phase = "prompt";
       state.flash = err instanceof Error ? err.message : "Could not save that review.";

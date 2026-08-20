@@ -149,7 +149,10 @@ export function parseBackup(raw: unknown): BackupFile {
     version: 1,
     exportedAt: typeof data.exportedAt === "string" ? data.exportedAt : new Date().toISOString(),
     topics: data.topics,
-    words: data.words,
+    words: data.words.map((w) => ({
+      ...w,
+      learningStep: typeof w.learningStep === "number" ? w.learningStep : 0,
+    })),
   };
 }
 

@@ -23,6 +23,7 @@ describe("parseBackup", () => {
 
   it("accepts a version 1 backup", () => {
     expect(parseBackup(valid).words).toHaveLength(1);
+    expect(parseBackup(valid).words[0]?.learningStep).toBe(0);
   });
 
   it("rejects a wrong version", () => {

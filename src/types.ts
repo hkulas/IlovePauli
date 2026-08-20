@@ -13,6 +13,8 @@ export type Word = {
   intervalDays: number;
   repetitions: number;
   nextReviewAt: number;
+  /** 0 new, 1 after first look (1 min), 2 after second look (10 min). Missing on old data. */
+  learningStep?: number;
 };
 
 export type Grade = "correct" | "almost" | "wrong";
@@ -43,6 +45,7 @@ export function newWordDraft(
     intervalDays: 0,
     repetitions: 0,
     nextReviewAt: 0,
+    learningStep: 0,
   };
 }
 
