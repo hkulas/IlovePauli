@@ -17,7 +17,7 @@ The first notebook pages (Shop Walk, Car trip, BRI 1, Memrise 1) load automatica
 1. Open **Study**. Optionally filter by topic.
 2. Type the Polish and tap **Check** (or press Enter).
 3. Exact match counts as correct. Missing only diacritics counts as *almost* (still a pass) and shows the proper spelling.
-4. New and missed words show again in the same sitting, then after about 10 minutes, then the 1-day / 6-day SM-2 schedule. If nothing is due, **Practice this topic anyway** drills the same words without changing that schedule.
+4. Missed words come back in the same sitting. Words you got right wait about 10 minutes, then the 1-day / 6-day SM-2 schedule. If nothing is due, **Practice this topic anyway** drills the same words without changing that schedule.
 
 ## Backup
 

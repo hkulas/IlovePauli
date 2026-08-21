@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { foldPolish, gradeAnswer, normalizeAnswer } from "./check";
+import { HOW_TO_SAY_POLISH } from "./seed";
 
 describe("normalizeAnswer", () => {
   it("trims and collapses spaces", () => {
@@ -24,6 +25,20 @@ describe("gradeAnswer", () => {
 
   it("marks empty as wrong", () => {
     expect(gradeAnswer("kot", "   ")).toBe("wrong");
+  });
+
+  it("accepts any alternative separated by slash", () => {
+    expect(gradeAnswer(HOW_TO_SAY_POLISH, "jak powiedzieć")).toBe("correct");
+    expect(gradeAnswer(HOW_TO_SAY_POLISH, "jak się mówi")).toBe("correct");
+    expect(gradeAnswer(HOW_TO_SAY_POLISH, "jak się mówi po polsku")).toBe("correct");
+    expect(gradeAnswer(HOW_TO_SAY_POLISH, "jak to się mówi po polsku")).toBe("correct");
+    expect(gradeAnswer(HOW_TO_SAY_POLISH, "jak sie mowi po polsku")).toBe("almost");
+    expect(gradeAnswer(HOW_TO_SAY_POLISH, "kot")).toBe("wrong");
+  });
+
+  it("splits alternatives on slash even without spaces", () => {
+    expect(gradeAnswer("jak powiedzieć/jak się mówi", "jak powiedzieć")).toBe("correct");
+    expect(gradeAnswer("jak powiedzieć/jak się mówi", "jak się mówi")).toBe("correct");
   });
 });
 

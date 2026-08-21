@@ -1,3 +1,5 @@
+import type { Topic, Word } from "./types";
+
 export const SEED_TOPIC_NAMES = ["Shop Walk", "Car trip", "BRI 1", "Memrise 1"] as const;
 
 export type SeedTopicName = (typeof SEED_TOPIC_NAMES)[number];
@@ -6,6 +8,72 @@ export const LEGACY_TOPIC_RENAMES: Record<string, SeedTopicName> = {
   Everyday: "Shop Walk",
   "More words": "Car trip",
 };
+
+export const HOW_TO_SAY_ENGLISH = "how do you say this in Polish";
+
+export const HOW_TO_SAY_POLISH =
+  "jak powiedzieć / jak się mówi / jak się mówi po polsku / jak to się mówi po polsku";
+
+export const LEGACY_HOW_TO_SAY_ENGLISH = ["how do you say", "how to say", HOW_TO_SAY_ENGLISH] as const;
+
+const LEGACY_HOW_TO_SAY_KEYS = new Set(
+  LEGACY_HOW_TO_SAY_ENGLISH.map((english) => english.toLocaleLowerCase("en")),
+);
+
+export function isHowToSayEnglish(english: string): boolean {
+  return LEGACY_HOW_TO_SAY_KEYS.has(english.trim().toLocaleLowerCase("en"));
+}
+
+function isCanonicalHowToSay(english: string): boolean {
+  return english.trim().toLocaleLowerCase("en") === HOW_TO_SAY_ENGLISH.toLocaleLowerCase("en");
+}
+
+/** Prefer the card she actually studied; tie-break canonical English, then id. */
+function compareHowToSayKeepers(a: Word, b: Word): number {
+  const byReps = b.repetitions - a.repetitions;
+  if (byReps) return byReps;
+  const byInterval = b.intervalDays - a.intervalDays;
+  if (byInterval) return byInterval;
+  const byStep = (b.learningStep ?? 0) - (a.learningStep ?? 0);
+  if (byStep) return byStep;
+  const aSeen = a.nextReviewAt > 0 ? 1 : 0;
+  const bSeen = b.nextReviewAt > 0 ? 1 : 0;
+  if (bSeen !== aSeen) return bSeen - aSeen;
+  const aCanon = isCanonicalHowToSay(a.english) ? 1 : 0;
+  const bCanon = isCanonicalHowToSay(b.english) ? 1 : 0;
+  if (bCanon !== aCanon) return bCanon - aCanon;
+  return a.id.localeCompare(b.id);
+}
+
+/** Keep one how-to-say card, combined Polish, BRI 1 when that topic exists. */
+export function planHowToSayMerge(
+  words: Word[],
+  topics: Topic[],
+): { keep: Word; deleteIds: string[] } | null {
+  const matches = words.filter((word) => isHowToSayEnglish(word.english));
+  if (matches.length === 0) return null;
+
+  const preferred = [...matches].sort(compareHowToSayKeepers)[0];
+  if (!preferred) return null;
+
+  const bri = topics.find((topic) => topic.name === "BRI 1");
+  const keep: Word = {
+    ...preferred,
+    english: HOW_TO_SAY_ENGLISH,
+    polish: HOW_TO_SAY_POLISH,
+    topicId: bri?.id ?? preferred.topicId,
+  };
+  const deleteIds = matches.filter((word) => word.id !== keep.id).map((word) => word.id);
+  if (
+    deleteIds.length === 0 &&
+    preferred.english === keep.english &&
+    preferred.polish === keep.polish &&
+    preferred.topicId === keep.topicId
+  ) {
+    return null;
+  }
+  return { keep, deleteIds };
+}
 
 export type SeedWord = {
   english: string;
@@ -17,8 +85,6 @@ export type SeedWord = {
 export const SEED_WORDS: SeedWord[] = [
   { english: "shop", polish: "sklep", topic: "Shop Walk" },
   { english: "walk", polish: "spacer", topic: "Shop Walk" },
-  { english: "how do you say", polish: "jak się mówi", topic: "Shop Walk" },
-  { english: "how to say", polish: "jak powiedzieć", topic: "Shop Walk" },
   { english: "because", polish: "ponieważ", topic: "Shop Walk" },
   { english: "I want", polish: "chcieć", topic: "Shop Walk" },
   { english: "buy", polish: "kupić", topic: "Shop Walk" },
@@ -40,7 +106,7 @@ export const SEED_WORDS: SeedWord[] = [
   { english: "word", polish: "słowo", topic: "Car trip" },
 
   { english: "what does it mean", polish: "co to znaczy", topic: "BRI 1" },
-  { english: "how do you say this in Polish", polish: "jak to się mówi po polsku", topic: "BRI 1" },
+  { english: HOW_TO_SAY_ENGLISH, polish: HOW_TO_SAY_POLISH, topic: "BRI 1" },
   { english: "what", polish: "co", topic: "BRI 1" },
   { english: "where", polish: "gdzie", topic: "BRI 1" },
   { english: "who", polish: "kto", topic: "BRI 1" },

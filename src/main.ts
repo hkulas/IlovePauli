@@ -1,7 +1,7 @@
 import { gradeAnswer } from "./check";
 import * as db from "./db";
 import { keepIfTopicExists } from "./filters";
-import { pickSession, review, shouldRequeueInSession } from "./srs";
+import { insertIndexAfterCurrent, pickSession, review, shouldRequeueInSession, shuffle } from "./srs";
 import "./style.css";
 import {
   SESSION_CAP,
@@ -58,6 +58,7 @@ const state = {
   wordFilter: "all" as string | "all",
   extraRequeues: {} as Record<string, number>,
   cram: false,
+  sessionMisses: [] as Word[],
 };
 
 async function reload(): Promise<void> {
@@ -90,19 +91,40 @@ function startSession(): void {
   state.stats = { correct: 0, almost: 0, wrong: 0 };
   state.lastGrade = null;
   state.extraRequeues = {};
+  state.sessionMisses = [];
   state.phase = state.session.length === 0 ? "idle" : "prompt";
 }
 
 function startCram(): void {
   const pool = wordsInStudyTopic();
   state.cram = true;
-  state.session = pool.slice(0, SESSION_CAP);
+  state.session = shuffle(pool).slice(0, SESSION_CAP);
   state.index = 0;
   state.stats = { correct: 0, almost: 0, wrong: 0 };
   state.lastGrade = null;
   state.extraRequeues = {};
+  state.sessionMisses = [];
   state.phase = state.session.length === 0 ? "idle" : "prompt";
   if (state.phase === "idle") state.flash = "No words in this topic yet.";
+}
+
+function startRetryMisses(): void {
+  if (state.cram) {
+    startCram();
+    return;
+  }
+  const misses = state.sessionMisses;
+  if (misses.length === 0) {
+    startSession();
+    return;
+  }
+  state.session = shuffle(misses.slice());
+  state.index = 0;
+  state.stats = { correct: 0, almost: 0, wrong: 0 };
+  state.lastGrade = null;
+  state.extraRequeues = {};
+  state.sessionMisses = [];
+  state.phase = "prompt";
 }
 
 function currentCard(): Word | undefined {
@@ -177,7 +199,7 @@ function studyHtml(): string {
         <p class="hint">${
           state.cram
             ? "This was extra practice — the real schedule did not change."
-            : "New and missed words come back in this session, then in about 10 minutes, then tomorrow."
+            : "Missed words come back now. Words you got right wait about 10 minutes."
         }</p>
         <button type="button" class="primary" data-action="restart">Study again</button>
       </section>
@@ -190,7 +212,7 @@ function studyHtml(): string {
       <label for="study-topic">Topic</label>
       <select id="study-topic">${topicOptions(state.studyTopic, true)}</select>
       <section class="empty">
-        <p>Nothing due in this topic right now. New cards return in about 10 minutes after the first looks.</p>
+        <p>Nothing due in this topic right now. Words you got right return in about 10 minutes.</p>
         ${
           wordsInStudyTopic().length > 0
             ? `<button type="button" class="primary" data-action="cram">Practice this topic anyway</button>`
@@ -365,7 +387,7 @@ function bind(): void {
   });
 
   app.querySelector<HTMLButtonElement>('[data-action="restart"]')?.addEventListener("click", () => {
-    startSession();
+    startRetryMisses();
     if (state.phase === "idle") state.flash = "Still nothing due.";
     render();
   });
@@ -399,10 +421,13 @@ function bind(): void {
       state.session[state.index] = updated;
       state.lastGrade = grade;
       state.stats[grade] += 1;
+      state.sessionMisses = state.sessionMisses.filter((w) => w.id !== updated.id);
+      if (grade === "wrong") state.sessionMisses.push(updated);
       const extras = state.extraRequeues[updated.id] ?? 0;
       const alreadyAhead = state.session.slice(state.index + 1).some((w) => w.id === updated.id);
-      if (!state.cram && !alreadyAhead && shouldRequeueInSession(updated, extras)) {
-        state.session.push(updated);
+      if (!state.cram && !alreadyAhead && shouldRequeueInSession(extras, grade)) {
+        const at = insertIndexAfterCurrent(state.index, state.session.length);
+        state.session.splice(at, 0, updated);
         state.extraRequeues[updated.id] = extras + 1;
       }
     } catch (err) {

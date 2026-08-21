@@ -1,6 +1,5 @@
 import type { Grade, Word } from "./types";
 
-export const ONE_MINUTE_MS = 60_000;
 export const TEN_MINUTES_MS = 10 * 60_000;
 const MS_PER_DAY = 86_400_000;
 const MAX_SESSION_REQUEUES = 2;
@@ -21,7 +20,7 @@ function withEase(word: Word, q: number): Word {
   return { ...word, easeFactor };
 }
 
-/** Anki-style: 1 minute, 10 minutes, then SM-2 (1 day, 6 days, ease × interval). */
+/** First pass waits 10 minutes; a miss stays due now. Then SM-2 (1 day, 6 days, ease × interval). */
 export function review(word: Word, grade: Grade, now = Date.now()): Word {
   const q = qualityFor(grade);
   const step = learningStepOf(word);
@@ -34,20 +33,12 @@ export function review(word: Word, grade: Grade, now = Date.now()): Word {
       repetitions: 0,
       intervalDays: 0,
       learningStep: 0,
-      nextReviewAt: now + TEN_MINUTES_MS,
+      nextReviewAt: now,
     };
   }
 
   if (eased.repetitions === 0) {
-    if (step === 0) {
-      return {
-        ...eased,
-        learningStep: 1,
-        intervalDays: 0,
-        nextReviewAt: now + ONE_MINUTE_MS,
-      };
-    }
-    if (step === 1) {
+    if (step === 0 || step === 1) {
       return {
         ...eased,
         learningStep: 2,
@@ -81,13 +72,37 @@ export function review(word: Word, grade: Grade, now = Date.now()): Word {
   };
 }
 
-export function shouldRequeueInSession(updated: Word, extrasAlready: number): boolean {
+export function shouldRequeueInSession(extrasAlready: number, grade: Grade): boolean {
   if (extrasAlready >= MAX_SESSION_REQUEUES) return false;
-  return updated.repetitions === 0 && learningStepOf(updated) <= 1;
+  return grade === "wrong";
 }
 
 export function isDue(word: Word, now = Date.now()): boolean {
   return word.nextReviewAt <= now;
+}
+
+export function shuffle<T>(items: T[], rng: () => number = Math.random): T[] {
+  const out = items.slice();
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    const current = out[i];
+    const swap = out[j];
+    if (current === undefined || swap === undefined) continue;
+    out[i] = swap;
+    out[j] = current;
+  }
+  return out;
+}
+
+export function insertIndexAfterCurrent(
+  current: number,
+  length: number,
+  rng: () => number = Math.random,
+): number {
+  const from = current + 1;
+  const slots = length - from + 1;
+  if (slots <= 0) return length;
+  return from + Math.floor(rng() * slots);
 }
 
 export function pickSession(
@@ -95,9 +110,8 @@ export function pickSession(
   topicId: string | "all",
   cap: number,
   now = Date.now(),
+  rng: () => number = Math.random,
 ): Word[] {
-  return words
-    .filter((w) => (topicId === "all" || w.topicId === topicId) && isDue(w, now))
-    .sort((a, b) => a.nextReviewAt - b.nextReviewAt || a.createdAt - b.createdAt)
-    .slice(0, cap);
+  const due = words.filter((w) => (topicId === "all" || w.topicId === topicId) && isDue(w, now));
+  return shuffle(due, rng).slice(0, cap);
 }

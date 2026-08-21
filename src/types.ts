@@ -13,7 +13,7 @@ export type Word = {
   intervalDays: number;
   repetitions: number;
   nextReviewAt: number;
-  /** 0 new, 1 after first look (1 min), 2 after second look (10 min). Missing on old data. */
+  /** 0 new, 2 after first pass (10 min). 1 is leftover from the old 1-minute step. */
   learningStep?: number;
 };
 

@@ -25,11 +25,20 @@ export function foldPolish(value: string): string {
   return out.normalize("NFD").replace(/\p{M}/gu, "");
 }
 
+export function polishAlternatives(expected: string): string[] {
+  return expected
+    .split(/\s*\/\s*/)
+    .map((part) => part.trim())
+    .filter((part) => part.length > 0);
+}
+
 export function gradeAnswer(expected: string, given: string): Grade {
-  const want = normalizeAnswer(expected);
   const got = normalizeAnswer(given);
   if (got.length === 0) return "wrong";
-  if (got === want) return "correct";
-  if (foldPolish(got) === foldPolish(want)) return "almost";
-  return "wrong";
+  let almost = false;
+  for (const alt of polishAlternatives(expected)) {
+    if (normalizeAnswer(alt) === got) return "correct";
+    if (foldPolish(alt) === foldPolish(got)) almost = true;
+  }
+  return almost ? "almost" : "wrong";
 }

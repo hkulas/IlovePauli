@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { LEGACY_TOPIC_RENAMES, SEED_TOPIC_NAMES, SEED_WORDS } from "./seed";
+import { HOW_TO_SAY_ENGLISH, HOW_TO_SAY_POLISH, isHowToSayEnglish, LEGACY_TOPIC_RENAMES, planHowToSayMerge, SEED_TOPIC_NAMES, SEED_WORDS } from "./seed";
+import { DEFAULT_EASE, type Topic, type Word } from "./types";
 
 describe("SEED_WORDS", () => {
   it("has english, polish, and a known topic on every row", () => {
@@ -22,7 +23,7 @@ describe("SEED_WORDS", () => {
     expect(polish).toContain("trochę");
     expect(polish).toContain("włosy");
     expect(polish).toContain("słowo");
-    expect(polish).toContain("jak to się mówi po polsku");
+    expect(polish).toContain(HOW_TO_SAY_POLISH);
     expect(polish).toContain("mieszkać");
     expect(polish).toContain("rozumieć");
     expect(polish).toContain("ja też nie");
@@ -37,5 +38,111 @@ describe("SEED_WORDS", () => {
   it("renames the old notebook section titles", () => {
     expect(LEGACY_TOPIC_RENAMES.Everyday).toBe("Shop Walk");
     expect(LEGACY_TOPIC_RENAMES["More words"]).toBe("Car trip");
+  });
+
+  it("keeps one how-to-say prompt on BRI 1", () => {
+    const howToSay = SEED_WORDS.filter((row) => isHowToSayEnglish(row.english));
+    expect(howToSay).toEqual([
+      { english: HOW_TO_SAY_ENGLISH, polish: HOW_TO_SAY_POLISH, topic: "BRI 1" },
+    ]);
+    expect(SEED_WORDS.some((row) => row.english === "how")).toBe(true);
+  });
+});
+
+describe("planHowToSayMerge", () => {
+  function topic(id: string, name: string): Topic {
+    return { id, name };
+  }
+
+  function word(id: string, english: string, polish: string, topicId: string): Word {
+    return {
+      id,
+      english,
+      polish,
+      topicId,
+      createdAt: 1,
+      easeFactor: DEFAULT_EASE,
+      intervalDays: 0,
+      repetitions: 0,
+      nextReviewAt: 0,
+      learningStep: 0,
+    };
+  }
+
+  it("merges the three old cards onto the BRI 1 prompt", () => {
+    const shop = topic("shop", "Shop Walk");
+    const bri = topic("bri", "BRI 1");
+    const first = word("w1", "how do you say", "jak się mówi", shop.id);
+    const second = word("w2", "how to say", "jak powiedzieć", shop.id);
+    const third = word("w3", HOW_TO_SAY_ENGLISH, "jak to się mówi po polsku", bri.id);
+    const other = word("w4", "how", "jak", bri.id);
+
+    const plan = planHowToSayMerge([first, second, third, other], [shop, bri]);
+    expect(plan).not.toBeNull();
+    expect(plan?.keep.id).toBe(third.id);
+    expect(plan?.keep.english).toBe(HOW_TO_SAY_ENGLISH);
+    expect(plan?.keep.polish).toBe(HOW_TO_SAY_POLISH);
+    expect(plan?.keep.topicId).toBe(bri.id);
+    expect(plan?.deleteIds.sort()).toEqual([first.id, second.id].sort());
+  });
+
+  it("keeps SRS from the most-reviewed duplicate, not the canonical prompt", () => {
+    const shop = topic("shop", "Shop Walk");
+    const bri = topic("bri", "BRI 1");
+    const studied = {
+      ...word("w1", "how do you say", "jak się mówi", shop.id),
+      repetitions: 4,
+      intervalDays: 15,
+      easeFactor: 2.7,
+      nextReviewAt: 9_000,
+      learningStep: 2,
+    };
+    const untouched = word("w3", HOW_TO_SAY_ENGLISH, "jak to się mówi po polsku", bri.id);
+
+    const plan = planHowToSayMerge([untouched, studied], [shop, bri]);
+    expect(plan?.keep.id).toBe(studied.id);
+    expect(plan?.keep.repetitions).toBe(4);
+    expect(plan?.keep.intervalDays).toBe(15);
+    expect(plan?.keep.easeFactor).toBe(2.7);
+    expect(plan?.keep.nextReviewAt).toBe(9_000);
+    expect(plan?.keep.english).toBe(HOW_TO_SAY_ENGLISH);
+    expect(plan?.keep.polish).toBe(HOW_TO_SAY_POLISH);
+    expect(plan?.keep.topicId).toBe(bri.id);
+    expect(plan?.deleteIds).toEqual([untouched.id]);
+  });
+
+  it("picks the more-reviewed card when only legacy prompts exist", () => {
+    const shop = topic("shop", "Shop Walk");
+    const weaker = { ...word("aaa", "how do you say", "jak się mówi", shop.id), repetitions: 1 };
+    const stronger = { ...word("zzz", "how to say", "jak powiedzieć", shop.id), repetitions: 3 };
+
+    const plan = planHowToSayMerge([weaker, stronger], [shop]);
+    expect(plan?.keep.id).toBe(stronger.id);
+    expect(plan?.keep.repetitions).toBe(3);
+    expect(plan?.deleteIds).toEqual([weaker.id]);
+  });
+
+  it("breaks ties with canonical English, then stable id", () => {
+    const shop = topic("shop", "Shop Walk");
+    const bri = topic("bri", "BRI 1");
+    const laterId = word("zzz", "how do you say", "jak się mówi", shop.id);
+    const earlierId = word("aaa", "how to say", "jak powiedzieć", shop.id);
+    expect(planHowToSayMerge([laterId, earlierId], [shop])?.keep.id).toBe(earlierId.id);
+
+    const canonical = word("zzz", HOW_TO_SAY_ENGLISH, "jak to się mówi po polsku", bri.id);
+    const legacy = word("aaa", "how do you say", "jak się mówi", shop.id);
+    expect(planHowToSayMerge([legacy, canonical], [shop, bri])?.keep.id).toBe(canonical.id);
+  });
+
+  it("is a no-op when the merged card is already in place", () => {
+    const bri = topic("bri", "BRI 1");
+    const card = word("w1", HOW_TO_SAY_ENGLISH, HOW_TO_SAY_POLISH, bri.id);
+    expect(planHowToSayMerge([card], [bri])).toBeNull();
+  });
+
+  it("does not treat the separate how / jak card as a duplicate", () => {
+    const bri = topic("bri", "BRI 1");
+    const how = word("w1", "how", "jak", bri.id);
+    expect(planHowToSayMerge([how], [bri])).toBeNull();
   });
 });
