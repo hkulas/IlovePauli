@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   insertIndexAfterCurrent,
   isDue,
+  isNewWord,
   pickSession,
   qualityFor,
   review,
@@ -101,6 +102,20 @@ describe("review learning steps", () => {
 
   it("stops requeueing a miss after two extras", () => {
     expect(shouldRequeueInSession(2, "wrong")).toBe(false);
+  });
+});
+
+describe("isNewWord", () => {
+  const now = 1_000_000;
+
+  it("is true for a word she has never been asked", () => {
+    expect(isNewWord(word())).toBe(true);
+  });
+
+  it("is false once it has been answered, even after a miss", () => {
+    expect(isNewWord(review(word(), "wrong", now))).toBe(false);
+    expect(isNewWord(review(word(), "correct", now))).toBe(false);
+    expect(isNewWord(learnThenGraduate(now))).toBe(false);
   });
 });
 

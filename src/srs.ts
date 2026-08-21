@@ -81,6 +81,11 @@ export function isDue(word: Word, now = Date.now()): boolean {
   return word.nextReviewAt <= now;
 }
 
+/** Never asked yet, so typing it blind would be a guess. A miss sets nextReviewAt to now. */
+export function isNewWord(word: Word): boolean {
+  return word.nextReviewAt === 0 && word.repetitions === 0;
+}
+
 export function shuffle<T>(items: T[], rng: () => number = Math.random): T[] {
   const out = items.slice();
   for (let i = out.length - 1; i > 0; i--) {

@@ -112,6 +112,16 @@ p.lead,
   margin-bottom: 14px;
 }
 
+.intro-card {
+  border-style: dashed;
+  border-color: var(--terracotta);
+  margin-bottom: 12px;
+}
+
+.intro-card .answer-reveal {
+  color: var(--terracotta-dark);
+}
+
 .prompt-label {
   text-transform: uppercase;
   letter-spacing: 0.08em;

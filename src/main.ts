@@ -1,7 +1,14 @@
-import { gradeAnswer } from "./check";
+import { checkAnswer, type AnswerReason } from "./check";
 import * as db from "./db";
 import { keepIfTopicExists } from "./filters";
-import { insertIndexAfterCurrent, pickSession, review, shouldRequeueInSession, shuffle } from "./srs";
+import {
+  insertIndexAfterCurrent,
+  isNewWord,
+  pickSession,
+  review,
+  shouldRequeueInSession,
+  shuffle,
+} from "./srs";
 import "./style.css";
 import {
   SESSION_CAP,
@@ -15,14 +22,19 @@ import {
 
 type View = "study" | "words" | "topics" | "backup";
 
-type StudyPhase = "idle" | "prompt" | "result" | "done";
+type StudyPhase = "idle" | "intro" | "prompt" | "result" | "done";
 
 const POLISH_CHARS = ["ą", "ć", "ę", "ł", "ń", "ó", "ś", "ź", "ż"] as const;
 
-const GRADE_COPY: Record<Grade, string> = {
-  correct: "Exactly right",
-  almost: "Almost — watch the accents",
-  wrong: "Not quite",
+/** "gave-up" is the I don't know button, not something gradeAnswer can return. */
+type ResultReason = AnswerReason | "gave-up";
+
+const RESULT_COPY: Record<ResultReason, string> = {
+  exact: "Exactly right",
+  diacritics: "Almost, watch the accents",
+  typo: "Almost, one letter off",
+  none: "Not quite",
+  "gave-up": "No worries, here it is",
 };
 
 function requireApp(): HTMLDivElement {
@@ -52,6 +64,8 @@ const state = {
   index: 0,
   phase: "idle" as StudyPhase,
   lastGrade: null as Grade | null,
+  lastReason: null as ResultReason | null,
+  introduced: {} as Record<string, true>,
   stats: { correct: 0, almost: 0, wrong: 0 },
   editingWordId: null as string | null,
   editingTopicId: null as string | null,
@@ -87,24 +101,14 @@ function wordsInStudyTopic(): Word[] {
 function startSession(): void {
   state.cram = false;
   state.session = pickSession(state.words, state.studyTopic, SESSION_CAP);
-  state.index = 0;
-  state.stats = { correct: 0, almost: 0, wrong: 0 };
-  state.lastGrade = null;
-  state.extraRequeues = {};
-  state.sessionMisses = [];
-  state.phase = state.session.length === 0 ? "idle" : "prompt";
+  resetSessionProgress();
 }
 
 function startCram(): void {
   const pool = wordsInStudyTopic();
   state.cram = true;
   state.session = shuffle(pool).slice(0, SESSION_CAP);
-  state.index = 0;
-  state.stats = { correct: 0, almost: 0, wrong: 0 };
-  state.lastGrade = null;
-  state.extraRequeues = {};
-  state.sessionMisses = [];
-  state.phase = state.session.length === 0 ? "idle" : "prompt";
+  resetSessionProgress();
   if (state.phase === "idle") state.flash = "No words in this topic yet.";
 }
 
@@ -119,16 +123,29 @@ function startRetryMisses(): void {
     return;
   }
   state.session = shuffle(misses.slice());
+  resetSessionProgress();
+}
+
+function resetSessionProgress(): void {
   state.index = 0;
   state.stats = { correct: 0, almost: 0, wrong: 0 };
   state.lastGrade = null;
+  state.lastReason = null;
   state.extraRequeues = {};
   state.sessionMisses = [];
-  state.phase = "prompt";
+  state.introduced = {};
+  state.phase = state.session.length === 0 ? "idle" : phaseForCurrentCard();
 }
 
 function currentCard(): Word | undefined {
   return state.session[state.index];
+}
+
+/** A word she has never seen gets shown once before she is asked to type it. */
+function phaseForCurrentCard(): StudyPhase {
+  const card = currentCard();
+  if (!card) return "done";
+  return isNewWord(card) && !state.introduced[card.id] ? "intro" : "prompt";
 }
 
 function setView(view: View): void {
@@ -198,7 +215,7 @@ function studyHtml(): string {
         <p>${correct} exact, ${almost} almost, ${wrong} to retry later.</p>
         <p class="hint">${
           state.cram
-            ? "This was extra practice — the real schedule did not change."
+            ? "This was extra practice, so the real schedule did not change."
             : "Missed words come back now. Words you got right wait about 10 minutes."
         }</p>
         <button type="button" class="primary" data-action="restart">Study again</button>
@@ -222,11 +239,25 @@ function studyHtml(): string {
     `;
   }
 
+  if (state.phase === "intro") {
+    return `
+      <p class="lead">${remaining} left in this session${state.cram ? " (extra practice)" : ""}</p>
+      <label for="study-topic">Topic</label>
+      <select id="study-topic">${topicOptions(state.studyTopic, true)}</select>
+      <section class="card prompt-card intro-card">
+        <div class="prompt-label">New word</div>
+        <p class="prompt">${escapeHtml(card.english)}</p>
+        <p class="answer-reveal">${escapeHtml(card.polish)}</p>
+      </section>
+      <button type="button" class="primary" data-action="introduced">Let me type it</button>
+    `;
+  }
+
   const resultBlock =
     state.phase === "result" && state.lastGrade
       ? `
         <div class="result ${state.lastGrade}">
-          <strong>${GRADE_COPY[state.lastGrade]}</strong>
+          <strong>${RESULT_COPY[state.lastReason ?? "none"]}</strong>
           <p class="answer-reveal">${escapeHtml(card.polish)}</p>
         </div>
         <button type="button" class="primary" data-action="next">${state.index + 1 >= state.session.length ? "Finish" : "Next"}</button>
@@ -234,11 +265,12 @@ function studyHtml(): string {
       : `
         <form id="study-form" class="stack">
           <label for="answer">Polish</label>
-          <input id="answer" class="answer-input" type="text" autocomplete="off" autocorrect="off" spellcheck="false" autocapitalize="off" />
+          <input id="answer" class="answer-input" type="text" lang="pl" autocomplete="off" autocorrect="off" spellcheck="false" autocapitalize="off" />
           <div class="charset">
             ${POLISH_CHARS.map((c) => `<button type="button" data-char="${c}">${c}</button>`).join("")}
           </div>
           <button type="submit" class="primary">Check</button>
+          <button type="button" class="quiet" data-action="give-up">I don't know</button>
         </form>
       `;
 
@@ -310,7 +342,7 @@ function wordsHtml(): string {
 function topicsHtml(): string {
   return `
     <h2>Topics</h2>
-    <p class="lead">Group words however she studies — food, verbs, travel.</p>
+    <p class="lead">Group words however she studies: food, verbs, travel.</p>
     <form id="topic-form" class="card stack">
       <label for="topic-name">${state.editingTopicId ? "Rename topic" : "New topic"}</label>
       <input id="topic-name" name="name" type="text" required value="${escapeHtml(
@@ -343,7 +375,7 @@ function topicsHtml(): string {
 function backupHtml(): string {
   return `
     <h2>Backup</h2>
-    <p class="lead">Words live in this browser only. Export after adding a batch, and use the same phone or laptop — or import the file on another device.</p>
+    <p class="lead">Words live in this browser only. Export after adding a batch, and use the same phone or laptop, or import the file on another device.</p>
     <section class="card stack">
       <button type="button" class="primary" data-action="export">Export JSON</button>
       <label class="file-btn">
@@ -352,6 +384,46 @@ function backupHtml(): string {
       </label>
     </section>
   `;
+}
+
+async function resolveCard(
+  form: HTMLFormElement,
+  result: { grade: Grade; reason: ResultReason },
+): Promise<void> {
+  if (state.phase !== "prompt") return;
+  const card = currentCard();
+  if (!card) return;
+  const { grade, reason } = result;
+  state.phase = "result";
+  form.querySelectorAll("button").forEach((btn) => {
+    btn.disabled = true;
+  });
+  try {
+    const updated = state.cram ? card : review(card, grade);
+    if (!state.cram) {
+      await db.putWord(updated);
+      state.words = state.words.map((w) => (w.id === updated.id ? updated : w));
+    }
+    state.session[state.index] = updated;
+    state.lastGrade = grade;
+    state.lastReason = reason;
+    state.stats[grade] += 1;
+    state.sessionMisses = state.sessionMisses.filter((w) => w.id !== updated.id);
+    if (grade === "wrong") state.sessionMisses.push(updated);
+    const extras = state.extraRequeues[updated.id] ?? 0;
+    const alreadyAhead = state.session.slice(state.index + 1).some((w) => w.id === updated.id);
+    if (!state.cram && !alreadyAhead && shouldRequeueInSession(extras, grade)) {
+      const at = insertIndexAfterCurrent(state.index, state.session.length);
+      state.session.splice(at, 0, updated);
+      state.extraRequeues[updated.id] = extras + 1;
+    }
+  } catch (err) {
+    state.phase = "prompt";
+    state.flash = err instanceof Error ? err.message : "Could not save that review.";
+    state.flashOk = false;
+  }
+  render();
+  app.querySelector<HTMLButtonElement>('[data-action="next"]')?.focus();
 }
 
 function insertChar(input: HTMLInputElement, char: string): void {
@@ -392,51 +464,36 @@ function bind(): void {
     render();
   });
 
+  app.querySelector<HTMLButtonElement>('[data-action="introduced"]')?.addEventListener("click", () => {
+    const card = currentCard();
+    if (!card) return;
+    state.introduced[card.id] = true;
+    state.phase = "prompt";
+    render();
+    app.querySelector<HTMLInputElement>("#answer")?.focus();
+  });
+
   app.querySelector<HTMLButtonElement>('[data-action="next"]')?.addEventListener("click", () => {
     state.index += 1;
     state.lastGrade = null;
-    state.phase = state.index >= state.session.length ? "done" : "prompt";
+    state.lastReason = null;
+    state.phase = state.index >= state.session.length ? "done" : phaseForCurrentCard();
     render();
     app.querySelector<HTMLInputElement>("#answer")?.focus();
   });
 
   const studyForm = app.querySelector<HTMLFormElement>("#study-form");
-  studyForm?.addEventListener("submit", async (event) => {
+  studyForm?.addEventListener("submit", (event) => {
     event.preventDefault();
-    if (state.phase !== "prompt") return;
-    const card = currentCard();
     const input = app.querySelector<HTMLInputElement>("#answer");
+    const card = currentCard();
     if (!card || !input) return;
-    state.phase = "result";
-    studyForm.querySelectorAll("button").forEach((btn) => {
-      btn.disabled = true;
-    });
-    try {
-      const grade = gradeAnswer(card.polish, input.value);
-      const updated = state.cram ? card : review(card, grade);
-      if (!state.cram) {
-        await db.putWord(updated);
-        state.words = state.words.map((w) => (w.id === updated.id ? updated : w));
-      }
-      state.session[state.index] = updated;
-      state.lastGrade = grade;
-      state.stats[grade] += 1;
-      state.sessionMisses = state.sessionMisses.filter((w) => w.id !== updated.id);
-      if (grade === "wrong") state.sessionMisses.push(updated);
-      const extras = state.extraRequeues[updated.id] ?? 0;
-      const alreadyAhead = state.session.slice(state.index + 1).some((w) => w.id === updated.id);
-      if (!state.cram && !alreadyAhead && shouldRequeueInSession(extras, grade)) {
-        const at = insertIndexAfterCurrent(state.index, state.session.length);
-        state.session.splice(at, 0, updated);
-        state.extraRequeues[updated.id] = extras + 1;
-      }
-    } catch (err) {
-      state.phase = "prompt";
-      state.flash = err instanceof Error ? err.message : "Could not save that review.";
-      state.flashOk = false;
-    }
-    render();
-    app.querySelector<HTMLButtonElement>('[data-action="next"]')?.focus();
+    void resolveCard(studyForm, checkAnswer(card.polish, input.value));
+  });
+
+  app.querySelector<HTMLButtonElement>('[data-action="give-up"]')?.addEventListener("click", () => {
+    if (!studyForm) return;
+    void resolveCard(studyForm, { grade: "wrong", reason: "gave-up" });
   });
 
   const wordFilter = app.querySelector<HTMLSelectElement>("#word-filter");

@@ -1,4 +1,4 @@
-# Słówka — Polish spaced repetition
+# Słówka: Polish spaced repetition
 
 A small website for learning Polish words. Add English → Polish cards, group them by topic, then type the Polish when the English is shown. Scheduling uses SM-2 (the same family of algorithm as Anki).
 
@@ -15,9 +15,10 @@ The first notebook pages (Shop Walk, Car trip, BRI 1, Memrise 1) load automatica
 ## Study
 
 1. Open **Study**. Optionally filter by topic.
-2. Type the Polish and tap **Check** (or press Enter).
-3. Exact match counts as correct. Missing only diacritics counts as *almost* (still a pass) and shows the proper spelling.
-4. Missed words come back in the same sitting. Words you got right wait about 10 minutes, then the 1-day / 6-day SM-2 schedule. If nothing is due, **Practice this topic anyway** drills the same words without changing that schedule.
+2. A word you have never been asked is shown with its Polish first. Tap **Let me type it**, then type it straight away.
+3. Type the Polish and tap **Check** (or press Enter). No idea? **I don't know** reveals it and brings the word back later in the sitting.
+4. Exact match counts as correct. Missing only diacritics counts as *almost* (still a pass), and so does one wrong, missing, or extra letter on a word of six letters or more. Short words are graded strictly, because `drogi` and `droga` are different words.
+5. Missed words come back in the same sitting. Words you got right wait about 10 minutes, then the 1-day / 6-day SM-2 schedule. If nothing is due, **Practice this topic anyway** drills the same words without changing that schedule.
 
 ## Backup
 
