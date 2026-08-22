@@ -7,7 +7,7 @@ import {
   normalizeAnswer,
   polishAlternatives,
 } from "./check";
-import { HOW_TO_SAY_POLISH, SEED_WORDS } from "./seed";
+import { HOW_TO_SAY_POLISH, SEED_WORDS, WELCOME_POLISH } from "./seed";
 
 describe("normalizeAnswer", () => {
   it("trims and collapses spaces", () => {
@@ -72,6 +72,13 @@ describe("gradeAnswer", () => {
   it("forgives a typo against one slash alternative", () => {
     expect(gradeAnswer(HOW_TO_SAY_POLISH, "jak powiedziec")).toBe("almost");
   });
+
+  it("accepts witam, witaj, and witamy for welcome", () => {
+    expect(gradeAnswer(WELCOME_POLISH, "witam")).toBe("correct");
+    expect(gradeAnswer(WELCOME_POLISH, "witaj")).toBe("correct");
+    expect(gradeAnswer(WELCOME_POLISH, "witamy")).toBe("correct");
+    expect(gradeAnswer(WELCOME_POLISH, "cześć")).toBe("wrong");
+  });
 });
 
 describe("checkAnswer", () => {
@@ -110,14 +117,19 @@ describe("editDistanceAtMost1", () => {
 });
 
 describe("typo tolerance against the real deck", () => {
-  it("cannot accept one seed answer as a typo of another", () => {
-    const answers = SEED_WORDS.flatMap((row) => polishAlternatives(row.polish)).map(foldPolish);
+  it("cannot accept one seed answer as a typo of a different card", () => {
+    const cards = SEED_WORDS.map((row) => polishAlternatives(row.polish).map(foldPolish));
     const collisions: string[] = [];
-    for (const answer of answers) {
-      for (const other of answers) {
-        if (answer === other) continue;
-        if (answer.length >= 6 && editDistanceAtMost1(answer, other)) {
-          collisions.push(`${answer} / ${other}`);
+    for (let i = 0; i < cards.length; i++) {
+      for (let j = 0; j < cards.length; j++) {
+        if (i === j) continue;
+        for (const answer of cards[i] ?? []) {
+          for (const other of cards[j] ?? []) {
+            if (answer === other) continue;
+            if (answer.length >= 6 && editDistanceAtMost1(answer, other)) {
+              collisions.push(`${answer} / ${other}`);
+            }
+          }
         }
       }
     }

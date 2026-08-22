@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { HOW_TO_SAY_ENGLISH, HOW_TO_SAY_POLISH, isHowToSayEnglish, LEGACY_TOPIC_RENAMES, planCarTripSplit, planHowToSayMerge, SEED_TOPIC_NAMES, SEED_WORDS } from "./seed";
+import { HOW_TO_SAY_ENGLISH, HOW_TO_SAY_POLISH, isHowToSayEnglish, LEGACY_TOPIC_RENAMES, planCarTripSplit, planHowToSayMerge, planWelcomePolish, SEED_TOPIC_NAMES, SEED_WORDS, WELCOME_ENGLISH, WELCOME_POLISH } from "./seed";
 import { DEFAULT_EASE, type Topic, type Word } from "./types";
 
 describe("SEED_WORDS", () => {
@@ -55,6 +55,14 @@ describe("SEED_WORDS", () => {
     expect(carTrip).toContainEqual({ english: "car", polish: "samochód", topic: "Car trip" });
     expect(carTrip).toContainEqual({ english: "trip", polish: "wycieczka", topic: "Car trip" });
     expect(carTrip.some((row) => row.english === "car trip")).toBe(false);
+  });
+
+  it("accepts several welcome forms", () => {
+    expect(SEED_WORDS).toContainEqual({
+      english: WELCOME_ENGLISH,
+      polish: WELCOME_POLISH,
+      topic: "Memrise 1",
+    });
   });
 });
 
@@ -207,5 +215,36 @@ describe("planCarTripSplit", () => {
 
   it("is a no-op when there is no compound card", () => {
     expect(planCarTripSplit([word("w1", "car", "samochód", "car-topic")])).toBeNull();
+  });
+});
+
+describe("planWelcomePolish", () => {
+  function word(id: string, english: string, polish: string): Word {
+    return {
+      id,
+      english,
+      polish,
+      topicId: "memrise",
+      createdAt: 1,
+      easeFactor: DEFAULT_EASE,
+      intervalDays: 0,
+      repetitions: 0,
+      nextReviewAt: 0,
+      learningStep: 0,
+    };
+  }
+
+  it("expands the old witamy-only card", () => {
+    const card = word("w1", "welcome", "witamy");
+    const plan = planWelcomePolish([card, word("w2", "me too", "ja też")]);
+    expect(plan).toEqual([{ ...card, polish: WELCOME_POLISH }]);
+  });
+
+  it("is a no-op when the combined polish is already stored", () => {
+    expect(planWelcomePolish([word("w1", "welcome", WELCOME_POLISH)])).toBeNull();
+  });
+
+  it("leaves a custom welcome translation alone", () => {
+    expect(planWelcomePolish([word("w1", "welcome", "cześć")])).toBeNull();
   });
 });

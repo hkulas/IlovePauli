@@ -129,6 +129,32 @@ export function planCarTripSplit(words: Word[]): CarTripSplitPlan | null {
   };
 }
 
+export const WELCOME_ENGLISH = "welcome";
+export const WELCOME_POLISH = "witam / witaj / witamy";
+
+const WELCOME_FORMS = new Set(["witam", "witaj", "witamy"]);
+
+function isWelcomeFormSet(polish: string): boolean {
+  const parts = polish
+    .split(/\s*\/\s*/)
+    .map((part) => part.trim().toLocaleLowerCase("pl"))
+    .filter((part) => part.length > 0);
+  return parts.length > 0 && parts.every((part) => WELCOME_FORMS.has(part));
+}
+
+/** Expand seed welcome cards so witam, witaj, and witamy all count. */
+export function planWelcomePolish(words: Word[]): Word[] | null {
+  const updates = words
+    .filter(
+      (word) =>
+        englishKey(word.english) === WELCOME_ENGLISH &&
+        isWelcomeFormSet(word.polish) &&
+        word.polish !== WELCOME_POLISH,
+    )
+    .map((word) => ({ ...word, polish: WELCOME_POLISH }));
+  return updates.length === 0 ? null : updates;
+}
+
 export type SeedWord = {
   english: string;
   polish: string;
@@ -175,7 +201,7 @@ export const SEED_WORDS: SeedWord[] = [
   { english: "for / behind", polish: "za", topic: "Memrise 1" },
   { english: "to meet", polish: "poznać", topic: "Memrise 1" },
   { english: "to understand", polish: "rozumieć", topic: "Memrise 1" },
-  { english: "welcome", polish: "witamy", topic: "Memrise 1" },
+  { english: WELCOME_ENGLISH, polish: WELCOME_POLISH, topic: "Memrise 1" },
   { english: "me neither", polish: "ja też nie", topic: "Memrise 1" },
   { english: "me too", polish: "ja też", topic: "Memrise 1" },
   { english: "that's great!", polish: "to świetnie!", topic: "Memrise 1" },

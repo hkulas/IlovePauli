@@ -1,5 +1,5 @@
 import { openDB, type DBSchema, type IDBPDatabase } from "idb";
-import { LEGACY_TOPIC_RENAMES, planCarTripSplit, planHowToSayMerge, SEED_TOPIC_NAMES, SEED_WORDS } from "./seed";
+import { LEGACY_TOPIC_RENAMES, planCarTripSplit, planHowToSayMerge, planWelcomePolish, SEED_TOPIC_NAMES, SEED_WORDS } from "./seed";
 import { newTopic, newWordDraft, type BackupFile, type Topic, type Word } from "./types";
 
 interface WordDB extends DBSchema {
@@ -54,6 +54,7 @@ export async function ensureSeeded(): Promise<void> {
   await renameLegacyTopics();
   await mergeHowToSayCards();
   await splitCarTripCards();
+  await expandWelcomePolish();
 }
 
 async function renameLegacyTopics(): Promise<void> {
@@ -98,6 +99,18 @@ async function splitCarTripCards(): Promise<void> {
   }
   for (const id of plan.deleteIds) {
     await tx.store.delete(id);
+  }
+  await tx.done;
+}
+
+async function expandWelcomePolish(): Promise<void> {
+  const db = await getDb();
+  const words = await db.getAll("words");
+  const updates = planWelcomePolish(words);
+  if (!updates) return;
+  const tx = db.transaction("words", "readwrite");
+  for (const word of updates) {
+    await tx.store.put(word);
   }
   await tx.done;
 }
