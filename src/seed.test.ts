@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { HOW_TO_SAY_ENGLISH, HOW_TO_SAY_POLISH, isHowToSayEnglish, LEGACY_TOPIC_RENAMES, planHowToSayMerge, SEED_TOPIC_NAMES, SEED_WORDS } from "./seed";
+import { HOW_TO_SAY_ENGLISH, HOW_TO_SAY_POLISH, isHowToSayEnglish, LEGACY_TOPIC_RENAMES, planCarTripSplit, planHowToSayMerge, SEED_TOPIC_NAMES, SEED_WORDS } from "./seed";
 import { DEFAULT_EASE, type Topic, type Word } from "./types";
 
 describe("SEED_WORDS", () => {
@@ -23,6 +23,8 @@ describe("SEED_WORDS", () => {
     expect(polish).toContain("trochę");
     expect(polish).toContain("włosy");
     expect(polish).toContain("słowo");
+    expect(polish).toContain("samochód");
+    expect(polish).toContain("wycieczka");
     expect(polish).toContain(HOW_TO_SAY_POLISH);
     expect(polish).toContain("mieszkać");
     expect(polish).toContain("rozumieć");
@@ -46,6 +48,13 @@ describe("SEED_WORDS", () => {
       { english: HOW_TO_SAY_ENGLISH, polish: HOW_TO_SAY_POLISH, topic: "BRI 1" },
     ]);
     expect(SEED_WORDS.some((row) => row.english === "how")).toBe(true);
+  });
+
+  it("splits car trip into two Car trip cards", () => {
+    const carTrip = SEED_WORDS.filter((row) => row.topic === "Car trip");
+    expect(carTrip).toContainEqual({ english: "car", polish: "samochód", topic: "Car trip" });
+    expect(carTrip).toContainEqual({ english: "trip", polish: "wycieczka", topic: "Car trip" });
+    expect(carTrip.some((row) => row.english === "car trip")).toBe(false);
   });
 });
 
@@ -144,5 +153,59 @@ describe("planHowToSayMerge", () => {
     const bri = topic("bri", "BRI 1");
     const how = word("w1", "how", "jak", bri.id);
     expect(planHowToSayMerge([how], [bri])).toBeNull();
+  });
+});
+
+describe("planCarTripSplit", () => {
+  function word(id: string, english: string, polish: string, topicId: string): Word {
+    return {
+      id,
+      english,
+      polish,
+      topicId,
+      createdAt: 1,
+      easeFactor: DEFAULT_EASE,
+      intervalDays: 0,
+      repetitions: 0,
+      nextReviewAt: 0,
+      learningStep: 0,
+    };
+  }
+
+  it("rewrites the compound card to trip and adds car", () => {
+    const compound = {
+      ...word("w1", "car trip", "wycieczka samochodowa", "car-topic"),
+      repetitions: 2,
+    };
+    const other = word("w2", "tree", "drzewo", "car-topic");
+
+    const plan = planCarTripSplit([compound, other]);
+    expect(plan).not.toBeNull();
+    expect(plan?.put).toEqual([{ ...compound, english: "trip", polish: "wycieczka" }]);
+    expect(plan?.add).toEqual([{ english: "car", polish: "samochód", topicId: "car-topic" }]);
+    expect(plan?.deleteIds).toEqual([]);
+  });
+
+  it("does not duplicate a car or trip card that already exists", () => {
+    const compound = word("w1", "car trip", "wycieczka samochodowa", "car-topic");
+    const trip = word("w2", "trip", "wycieczka", "car-topic");
+    const plan = planCarTripSplit([compound, trip]);
+    expect(plan?.put).toEqual([{ ...compound, english: "car", polish: "samochód" }]);
+    expect(plan?.add).toEqual([]);
+    expect(plan?.deleteIds).toEqual([]);
+  });
+
+  it("deletes leftover compounds when both cards already exist", () => {
+    const compound = word("w1", "car trip", "wycieczka samochodowa", "car-topic");
+    const car = word("w2", "car", "samochód", "car-topic");
+    const trip = word("w3", "trip", "wycieczka", "car-topic");
+    const plan = planCarTripSplit([compound, car, trip]);
+    expect(plan?.put).toEqual([]);
+    expect(plan?.add).toEqual([]);
+    expect(plan?.deleteIds).toEqual(["w1"]);
+  });
+
+  it("is a no-op when there is no compound card", () => {
+    expect(planCarTripSplit([word("w1", "car", "samochód", "car-topic")])).toBeNull();
   });
 });

@@ -1,5 +1,5 @@
 import { openDB, type DBSchema, type IDBPDatabase } from "idb";
-import { LEGACY_TOPIC_RENAMES, planHowToSayMerge, SEED_TOPIC_NAMES, SEED_WORDS } from "./seed";
+import { LEGACY_TOPIC_RENAMES, planCarTripSplit, planHowToSayMerge, SEED_TOPIC_NAMES, SEED_WORDS } from "./seed";
 import { newTopic, newWordDraft, type BackupFile, type Topic, type Word } from "./types";
 
 interface WordDB extends DBSchema {
@@ -53,6 +53,7 @@ export async function ensureSeeded(): Promise<void> {
   }
   await renameLegacyTopics();
   await mergeHowToSayCards();
+  await splitCarTripCards();
 }
 
 async function renameLegacyTopics(): Promise<void> {
@@ -77,6 +78,24 @@ async function mergeHowToSayCards(): Promise<void> {
   if (!plan) return;
   const tx = db.transaction("words", "readwrite");
   await tx.store.put(plan.keep);
+  for (const id of plan.deleteIds) {
+    await tx.store.delete(id);
+  }
+  await tx.done;
+}
+
+async function splitCarTripCards(): Promise<void> {
+  const db = await getDb();
+  const words = await db.getAll("words");
+  const plan = planCarTripSplit(words);
+  if (!plan) return;
+  const tx = db.transaction("words", "readwrite");
+  for (const word of plan.put) {
+    await tx.store.put(word);
+  }
+  for (const row of plan.add) {
+    await tx.store.put(newWordDraft(row.english, row.polish, row.topicId));
+  }
   for (const id of plan.deleteIds) {
     await tx.store.delete(id);
   }

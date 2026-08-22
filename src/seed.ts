@@ -75,6 +75,60 @@ export function planHowToSayMerge(
   return { keep, deleteIds };
 }
 
+export const CAR_ENGLISH = "car";
+export const CAR_POLISH = "samochód";
+export const TRIP_ENGLISH = "trip";
+export const TRIP_POLISH = "wycieczka";
+
+const LEGACY_CAR_TRIP_ENGLISH = "car trip";
+
+function englishKey(english: string): string {
+  return english.trim().toLocaleLowerCase("en");
+}
+
+export type CarTripAdd = {
+  english: string;
+  polish: string;
+  topicId: string;
+};
+
+export type CarTripSplitPlan = {
+  put: Word[];
+  add: CarTripAdd[];
+  deleteIds: string[];
+};
+
+/** Turn the old "car trip" card into separate car and trip cards. */
+export function planCarTripSplit(words: Word[]): CarTripSplitPlan | null {
+  const compounds = words.filter((word) => englishKey(word.english) === LEGACY_CAR_TRIP_ENGLISH);
+  if (compounds.length === 0) return null;
+
+  const preferred = [...compounds].sort(compareHowToSayKeepers)[0];
+  if (!preferred) return null;
+
+  const hasCar = words.some((word) => englishKey(word.english) === CAR_ENGLISH);
+  const hasTrip = words.some((word) => englishKey(word.english) === TRIP_ENGLISH);
+  const extras = compounds.filter((word) => word.id !== preferred.id).map((word) => word.id);
+
+  if (hasCar && hasTrip) {
+    return { put: [], add: [], deleteIds: compounds.map((word) => word.id) };
+  }
+
+  if (!hasTrip) {
+    const put: Word[] = [{ ...preferred, english: TRIP_ENGLISH, polish: TRIP_POLISH }];
+    const add: CarTripAdd[] = hasCar
+      ? []
+      : [{ english: CAR_ENGLISH, polish: CAR_POLISH, topicId: preferred.topicId }];
+    return { put, add, deleteIds: extras };
+  }
+
+  return {
+    put: [{ ...preferred, english: CAR_ENGLISH, polish: CAR_POLISH }],
+    add: [],
+    deleteIds: extras,
+  };
+}
+
 export type SeedWord = {
   english: string;
   polish: string;
@@ -93,7 +147,8 @@ export const SEED_WORDS: SeedWord[] = [
   { english: "path", polish: "droga", topic: "Shop Walk" },
   { english: "expensive", polish: "drogi", topic: "Shop Walk" },
 
-  { english: "car trip", polish: "wycieczka samochodowa", topic: "Car trip" },
+  { english: "car", polish: "samochód", topic: "Car trip" },
+  { english: "trip", polish: "wycieczka", topic: "Car trip" },
   { english: "different", polish: "inny", topic: "Car trip" },
   { english: "nice", polish: "ładne", topic: "Car trip" },
   { english: "straight", polish: "prosto", topic: "Car trip" },
