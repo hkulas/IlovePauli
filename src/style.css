@@ -6,10 +6,12 @@
   --ink: #2a2218;
   --muted: #6f6456;
   --line: #e0d4c2;
-  --terracotta: #c45c26;
-  --terracotta-dark: #9a4318;
-  --correct: #1f6b45;
-  --correct-bg: #e5f3ea;
+  --sea: #2ba78b;
+  --sea-dark: #1e8a72;
+  --air: #458eb0;
+  --air-dark: #347394;
+  --correct: #2ba78b;
+  --correct-bg: #e3f5ef;
   --almost: #9a5b12;
   --almost-bg: #f6ead6;
   --wrong: #9b2c2c;
@@ -38,7 +40,7 @@ body {
   margin: 0;
   min-height: 100%;
   background:
-    radial-gradient(1200px 500px at 10% -10%, #f7e7d4 0%, transparent 50%),
+    radial-gradient(1200px 500px at 10% -10%, #d8f3eb 0%, transparent 50%),
     var(--bg);
 }
 
@@ -71,16 +73,16 @@ h2,
 }
 
 .wordmark span {
-  color: var(--terracotta);
+  color: var(--sea);
 }
 
 .due-pill {
   background: var(--paper);
-  border: 1px solid var(--line);
+  border: 1px solid var(--air);
   border-radius: 999px;
   padding: 4px 10px;
   font-size: 0.85rem;
-  color: var(--muted);
+  color: var(--air-dark);
 }
 
 h2 {
@@ -114,12 +116,12 @@ p.lead,
 
 .intro-card {
   border-style: dashed;
-  border-color: var(--terracotta);
+  border-color: var(--sea);
   margin-bottom: 12px;
 }
 
 .intro-card .answer-reveal {
-  color: var(--terracotta-dark);
+  color: var(--sea-dark);
 }
 
 .prompt-label {
@@ -165,7 +167,7 @@ select {
 input:focus,
 select:focus,
 button:focus-visible {
-  outline: 2px solid var(--terracotta);
+  outline: 2px solid var(--sea);
   outline-offset: 2px;
 }
 
@@ -215,12 +217,12 @@ button.quiet {
 }
 
 button.primary {
-  background: var(--terracotta);
+  background: var(--sea);
   color: #fff;
 }
 
 button.primary:hover {
-  background: var(--terracotta-dark);
+  background: var(--sea-dark);
 }
 
 button.ghost {
@@ -346,7 +348,7 @@ button:disabled {
 }
 
 .nav button.active {
-  color: var(--terracotta-dark);
+  color: var(--air);
 }
 
 .empty {
