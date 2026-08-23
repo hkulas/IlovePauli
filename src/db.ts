@@ -1,5 +1,5 @@
 import { openDB, type DBSchema, type IDBPDatabase } from "idb";
-import { LEGACY_TOPIC_RENAMES, planCarTripSplit, planHowToSayMerge, planWelcomePolish, SEED_TOPIC_NAMES, SEED_WORDS } from "./seed";
+import { I_FORMS_TOPIC, LEGACY_TOPIC_RENAMES, planCarTripSplit, planEnsureIForms, planHowToSayMerge, planWelcomePolish, SEED_TOPIC_NAMES, SEED_WORDS } from "./seed";
 import { newTopic, newWordDraft, type BackupFile, type Topic, type Word } from "./types";
 
 interface WordDB extends DBSchema {
@@ -55,6 +55,7 @@ export async function ensureSeeded(): Promise<void> {
   await mergeHowToSayCards();
   await splitCarTripCards();
   await expandWelcomePolish();
+  await ensureIFormsTopic();
 }
 
 async function renameLegacyTopics(): Promise<void> {
@@ -111,6 +112,25 @@ async function expandWelcomePolish(): Promise<void> {
   const tx = db.transaction("words", "readwrite");
   for (const word of updates) {
     await tx.store.put(word);
+  }
+  await tx.done;
+}
+
+async function ensureIFormsTopic(): Promise<void> {
+  const db = await getDb();
+  const [topics, words] = await Promise.all([db.getAll("topics"), db.getAll("words")]);
+  const plan = planEnsureIForms(topics, words);
+  if (!plan) return;
+  const tx = db.transaction(["topics", "words"], "readwrite");
+  let topicId = topics.find((topic) => topic.name === I_FORMS_TOPIC)?.id;
+  if (plan.newTopicName) {
+    const topic = newTopic(plan.newTopicName);
+    topicId = topic.id;
+    await tx.objectStore("topics").put(topic);
+  }
+  if (!topicId) throw new Error("Missing I-forms topic");
+  for (const row of plan.add) {
+    await tx.objectStore("words").put(newWordDraft(row.english, row.polish, topicId));
   }
   await tx.done;
 }

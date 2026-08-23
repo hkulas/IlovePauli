@@ -1,6 +1,6 @@
 import type { Topic, Word } from "./types";
 
-export const SEED_TOPIC_NAMES = ["Shop Walk", "Car trip", "BRI 1", "Memrise 1"] as const;
+export const SEED_TOPIC_NAMES = ["Shop Walk", "Car trip", "BRI 1", "Memrise 1", "I-forms"] as const;
 
 export type SeedTopicName = (typeof SEED_TOPIC_NAMES)[number];
 
@@ -161,6 +161,54 @@ export type SeedWord = {
   topic: SeedTopicName;
 };
 
+export const I_FORMS_TOPIC = "I-forms" satisfies SeedTopicName;
+
+/**
+ * Usable I-forms, not infinitives. Skip "I want" / chcę: that card is already in Shop Walk.
+ */
+export const I_FORM_WORDS: SeedWord[] = [
+  { english: "I am", polish: "jestem", topic: "I-forms" },
+  { english: "I have", polish: "mam", topic: "I-forms" },
+  { english: "I can", polish: "mogę", topic: "I-forms" },
+  { english: "I can't", polish: "nie mogę", topic: "I-forms" },
+  { english: "I have to / I must", polish: "muszę", topic: "I-forms" },
+  { english: "I do / I'm doing", polish: "robię", topic: "I-forms" },
+  { english: "I speak / I'm saying", polish: "mówię", topic: "I-forms" },
+  { english: "I know", polish: "wiem", topic: "I-forms" },
+  { english: "I know / I'm familiar with", polish: "znam", topic: "I-forms" },
+  { english: "I like", polish: "lubię", topic: "I-forms" },
+  { english: "I need", polish: "potrzebuję", topic: "I-forms" },
+  { english: "I'm going (on foot)", polish: "idę", topic: "I-forms" },
+  { english: "I'm going (by vehicle)", polish: "jadę", topic: "I-forms" },
+  { english: "I'm eating / I eat", polish: "jem", topic: "I-forms" },
+  { english: "I'm drinking / I drink", polish: "piję", topic: "I-forms" },
+  { english: "I see", polish: "widzę", topic: "I-forms" },
+];
+
+export type IFormAdd = {
+  english: string;
+  polish: string;
+};
+
+export type EnsureIFormsPlan = {
+  newTopicName: string | null;
+  add: IFormAdd[];
+};
+
+/** Add the I-forms topic and any missing cards to a deck that already has words. */
+export function planEnsureIForms(topics: Topic[], words: Word[]): EnsureIFormsPlan | null {
+  const hasTopic = topics.some((topic) => topic.name === I_FORMS_TOPIC);
+  const existingEnglish = new Set(words.map((word) => englishKey(word.english)));
+  const add = I_FORM_WORDS.filter((row) => !existingEnglish.has(englishKey(row.english))).map(
+    ({ english, polish }) => ({ english, polish }),
+  );
+  if (add.length === 0) return null;
+  return {
+    newTopicName: hasTopic ? null : I_FORMS_TOPIC,
+    add,
+  };
+}
+
 /** First notebook pages. Loaded only when this browser has no words yet. */
 export const SEED_WORDS: SeedWord[] = [
   { english: "shop", polish: "sklep", topic: "Shop Walk" },
@@ -206,4 +254,6 @@ export const SEED_WORDS: SeedWord[] = [
   { english: "me too", polish: "ja też", topic: "Memrise 1" },
   { english: "that's great!", polish: "to świetnie!", topic: "Memrise 1" },
   { english: "no problem", polish: "nie ma sprawy", topic: "Memrise 1" },
+
+  ...I_FORM_WORDS,
 ];

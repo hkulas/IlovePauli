@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { HOW_TO_SAY_ENGLISH, HOW_TO_SAY_POLISH, isHowToSayEnglish, LEGACY_TOPIC_RENAMES, planCarTripSplit, planHowToSayMerge, planWelcomePolish, SEED_TOPIC_NAMES, SEED_WORDS, WELCOME_ENGLISH, WELCOME_POLISH } from "./seed";
+import { HOW_TO_SAY_ENGLISH, HOW_TO_SAY_POLISH, I_FORM_WORDS, I_FORMS_TOPIC, isHowToSayEnglish, LEGACY_TOPIC_RENAMES, planCarTripSplit, planEnsureIForms, planHowToSayMerge, planWelcomePolish, SEED_TOPIC_NAMES, SEED_WORDS, WELCOME_ENGLISH, WELCOME_POLISH } from "./seed";
 import { DEFAULT_EASE, type Topic, type Word } from "./types";
 
 describe("SEED_WORDS", () => {
@@ -30,10 +30,21 @@ describe("SEED_WORDS", () => {
     expect(polish).toContain("rozumieć");
     expect(polish).toContain("ja też nie");
     expect(polish).toContain("to świetnie!");
+    expect(polish).toContain("mogę");
+    expect(polish).toContain("muszę");
+    expect(polish).toContain("mówię");
+    expect(polish).toContain("potrzebuję");
+    expect(polish).toContain("idę");
+    expect(polish).toContain("jadę");
   });
 
   it("does not repeat the same english+polish pair", () => {
     const keys = SEED_WORDS.map((w) => `${w.english}\0${w.polish}`);
+    expect(new Set(keys).size).toBe(keys.length);
+  });
+
+  it("does not reuse the same english prompt", () => {
+    const keys = SEED_WORDS.map((w) => w.english.trim().toLocaleLowerCase("en"));
     expect(new Set(keys).size).toBe(keys.length);
   });
 
@@ -63,6 +74,41 @@ describe("SEED_WORDS", () => {
       polish: WELCOME_POLISH,
       topic: "Memrise 1",
     });
+  });
+
+  it("tests I-forms as usable conjugated prompts", () => {
+    expect(SEED_TOPIC_NAMES).toContain(I_FORMS_TOPIC);
+    expect(I_FORM_WORDS).toHaveLength(16);
+    for (const row of I_FORM_WORDS) {
+      expect(row.topic).toBe(I_FORMS_TOPIC);
+      expect(SEED_WORDS).toContainEqual(row);
+    }
+    expect(I_FORM_WORDS).toContainEqual({ english: "I can", polish: "mogę", topic: I_FORMS_TOPIC });
+    expect(I_FORM_WORDS).toContainEqual({ english: "I know", polish: "wiem", topic: I_FORMS_TOPIC });
+    expect(I_FORM_WORDS).toContainEqual({
+      english: "I know / I'm familiar with",
+      polish: "znam",
+      topic: I_FORMS_TOPIC,
+    });
+    expect(I_FORM_WORDS).toContainEqual({
+      english: "I'm going (on foot)",
+      polish: "idę",
+      topic: I_FORMS_TOPIC,
+    });
+    expect(I_FORM_WORDS).toContainEqual({
+      english: "I'm going (by vehicle)",
+      polish: "jadę",
+      topic: I_FORMS_TOPIC,
+    });
+    expect(I_FORM_WORDS.some((row) => row.english === "I want" || row.polish === "chcę")).toBe(false);
+    expect(I_FORM_WORDS.some((row) => row.english.toLocaleLowerCase("en").startsWith("to "))).toBe(
+      false,
+    );
+    const polishForms = I_FORM_WORDS.map((row) => row.polish);
+    for (const infinitive of ["być", "mieć", "móc", "musieć", "robić", "mówić", "iść", "jechać"]) {
+      expect(polishForms).not.toContain(infinitive);
+    }
+    expect(SEED_WORDS).toContainEqual({ english: "I want", polish: "chcieć", topic: "Shop Walk" });
   });
 });
 
@@ -246,5 +292,50 @@ describe("planWelcomePolish", () => {
 
   it("leaves a custom welcome translation alone", () => {
     expect(planWelcomePolish([word("w1", "welcome", "cześć")])).toBeNull();
+  });
+});
+
+describe("planEnsureIForms", () => {
+  function word(id: string, english: string, topicId: string): Word {
+    return {
+      id,
+      english,
+      polish: "x",
+      topicId,
+      createdAt: 1,
+      easeFactor: DEFAULT_EASE,
+      intervalDays: 0,
+      repetitions: 0,
+      nextReviewAt: 0,
+      learningStep: 0,
+    };
+  }
+
+  it("creates the topic and all I-form cards on an existing deck", () => {
+    const plan = planEnsureIForms([{ id: "t1", name: "Shop Walk" }], [word("w1", "shop", "t1")]);
+    expect(plan?.newTopicName).toBe(I_FORMS_TOPIC);
+    expect(plan?.add).toEqual(I_FORM_WORDS.map(({ english, polish }) => ({ english, polish })));
+  });
+
+  it("does not add I want, which is already in Shop Walk", () => {
+    const plan = planEnsureIForms(
+      [{ id: "t1", name: "Shop Walk" }],
+      [word("w1", "I want", "t1"), word("w2", "shop", "t1")],
+    );
+    expect(plan?.add.some((row) => row.english === "I want" || row.polish === "chcę")).toBe(false);
+  });
+
+  it("adds only missing cards when the I-forms topic already exists", () => {
+    const topic = { id: "if", name: I_FORMS_TOPIC };
+    const plan = planEnsureIForms([topic], [word("w1", "I am", topic.id), word("w2", "I can", topic.id)]);
+    expect(plan?.newTopicName).toBeNull();
+    expect(plan?.add.some((row) => row.english === "I am")).toBe(false);
+    expect(plan?.add.some((row) => row.english === "I need")).toBe(true);
+  });
+
+  it("is a no-op when the I-forms batch is already present", () => {
+    const topic = { id: "if", name: I_FORMS_TOPIC };
+    const words = I_FORM_WORDS.map((row, i) => word(`w${i}`, row.english, topic.id));
+    expect(planEnsureIForms([topic], words)).toBeNull();
   });
 });
