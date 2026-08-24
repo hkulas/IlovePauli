@@ -1,5 +1,5 @@
 import { openDB, type DBSchema, type IDBPDatabase } from "idb";
-import { I_FORMS_TOPIC, LEGACY_TOPIC_RENAMES, planCarTripSplit, planEnsureIForms, planHowToSayMerge, planWelcomePolish, SEED_TOPIC_NAMES, SEED_WORDS } from "./seed";
+import { CAR_TRIP_TOPIC, I_FORMS_TOPIC, LEGACY_TOPIC_RENAMES, planCarTripSplit, planDropJade, planEnsureCar, planEnsureIForms, planHowToSayMerge, planWelcomePolish, SEED_TOPIC_NAMES, SEED_WORDS } from "./seed";
 import { newTopic, newWordDraft, type BackupFile, type Topic, type Word } from "./types";
 
 interface WordDB extends DBSchema {
@@ -56,6 +56,8 @@ export async function ensureSeeded(): Promise<void> {
   await splitCarTripCards();
   await expandWelcomePolish();
   await ensureIFormsTopic();
+  await dropJadeCards();
+  await ensureCarCard();
 }
 
 async function renameLegacyTopics(): Promise<void> {
@@ -132,6 +134,35 @@ async function ensureIFormsTopic(): Promise<void> {
   for (const row of plan.add) {
     await tx.objectStore("words").put(newWordDraft(row.english, row.polish, topicId));
   }
+  await tx.done;
+}
+
+async function dropJadeCards(): Promise<void> {
+  const db = await getDb();
+  const words = await db.getAll("words");
+  const deleteIds = planDropJade(words);
+  if (!deleteIds) return;
+  const tx = db.transaction("words", "readwrite");
+  for (const id of deleteIds) {
+    await tx.store.delete(id);
+  }
+  await tx.done;
+}
+
+async function ensureCarCard(): Promise<void> {
+  const db = await getDb();
+  const [topics, words] = await Promise.all([db.getAll("topics"), db.getAll("words")]);
+  const plan = planEnsureCar(topics, words);
+  if (!plan) return;
+  const tx = db.transaction(["topics", "words"], "readwrite");
+  let topicId = topics.find((topic) => topic.name === CAR_TRIP_TOPIC)?.id;
+  if (plan.newTopicName) {
+    const topic = newTopic(plan.newTopicName);
+    topicId = topic.id;
+    await tx.objectStore("topics").put(topic);
+  }
+  if (!topicId) throw new Error("Missing Car trip topic");
+  await tx.objectStore("words").put(newWordDraft(plan.add.english, plan.add.polish, topicId));
   await tx.done;
 }
 

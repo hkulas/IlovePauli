@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { HOW_TO_SAY_ENGLISH, HOW_TO_SAY_POLISH, I_FORM_WORDS, I_FORMS_TOPIC, isHowToSayEnglish, LEGACY_TOPIC_RENAMES, planCarTripSplit, planEnsureIForms, planHowToSayMerge, planWelcomePolish, SEED_TOPIC_NAMES, SEED_WORDS, WELCOME_ENGLISH, WELCOME_POLISH } from "./seed";
+import { CAR_ENGLISH, CAR_POLISH, CAR_TRIP_TOPIC, HOW_TO_SAY_ENGLISH, HOW_TO_SAY_POLISH, I_FORM_WORDS, I_FORMS_TOPIC, isHowToSayEnglish, LEGACY_TOPIC_RENAMES, planCarTripSplit, planDropJade, planEnsureCar, planEnsureIForms, planHowToSayMerge, planWelcomePolish, SEED_TOPIC_NAMES, SEED_WORDS, WELCOME_ENGLISH, WELCOME_POLISH } from "./seed";
 import { DEFAULT_EASE, type Topic, type Word } from "./types";
 
 describe("SEED_WORDS", () => {
@@ -35,7 +35,7 @@ describe("SEED_WORDS", () => {
     expect(polish).toContain("mówię");
     expect(polish).toContain("potrzebuję");
     expect(polish).toContain("idę");
-    expect(polish).toContain("jadę");
+    expect(polish).not.toContain("jadę");
   });
 
   it("does not repeat the same english+polish pair", () => {
@@ -78,7 +78,7 @@ describe("SEED_WORDS", () => {
 
   it("tests I-forms as usable conjugated prompts", () => {
     expect(SEED_TOPIC_NAMES).toContain(I_FORMS_TOPIC);
-    expect(I_FORM_WORDS).toHaveLength(16);
+    expect(I_FORM_WORDS).toHaveLength(15);
     for (const row of I_FORM_WORDS) {
       expect(row.topic).toBe(I_FORMS_TOPIC);
       expect(SEED_WORDS).toContainEqual(row);
@@ -95,11 +95,7 @@ describe("SEED_WORDS", () => {
       polish: "idę",
       topic: I_FORMS_TOPIC,
     });
-    expect(I_FORM_WORDS).toContainEqual({
-      english: "I'm going (by vehicle)",
-      polish: "jadę",
-      topic: I_FORMS_TOPIC,
-    });
+    expect(I_FORM_WORDS.some((row) => row.polish === "jadę")).toBe(false);
     expect(I_FORM_WORDS.some((row) => row.english === "I want" || row.polish === "chcę")).toBe(false);
     expect(I_FORM_WORDS.some((row) => row.english.toLocaleLowerCase("en").startsWith("to "))).toBe(
       false,
@@ -337,5 +333,67 @@ describe("planEnsureIForms", () => {
     const topic = { id: "if", name: I_FORMS_TOPIC };
     const words = I_FORM_WORDS.map((row, i) => word(`w${i}`, row.english, topic.id));
     expect(planEnsureIForms([topic], words)).toBeNull();
+  });
+});
+
+describe("planDropJade", () => {
+  function word(id: string, english: string, polish: string): Word {
+    return {
+      id,
+      english,
+      polish,
+      topicId: "if",
+      createdAt: 1,
+      easeFactor: DEFAULT_EASE,
+      intervalDays: 0,
+      repetitions: 0,
+      nextReviewAt: 0,
+      learningStep: 0,
+    };
+  }
+
+  it("deletes the old I'm going (by vehicle) card", () => {
+    const jade = word("w1", "I'm going (by vehicle)", "jadę");
+    const keep = word("w2", "I'm going (on foot)", "idę");
+    expect(planDropJade([jade, keep])).toEqual(["w1"]);
+  });
+
+  it("is a no-op when jadę is already gone", () => {
+    expect(planDropJade([word("w1", "I'm going (on foot)", "idę")])).toBeNull();
+  });
+});
+
+describe("planEnsureCar", () => {
+  function word(id: string, english: string, topicId: string): Word {
+    return {
+      id,
+      english,
+      polish: "x",
+      topicId,
+      createdAt: 1,
+      easeFactor: DEFAULT_EASE,
+      intervalDays: 0,
+      repetitions: 0,
+      nextReviewAt: 0,
+      learningStep: 0,
+    };
+  }
+
+  it("adds car on Car trip when the deck does not have it", () => {
+    const plan = planEnsureCar([{ id: "t1", name: CAR_TRIP_TOPIC }], [word("w1", "trip", "t1")]);
+    expect(plan).toEqual({
+      newTopicName: null,
+      add: { english: CAR_ENGLISH, polish: CAR_POLISH },
+    });
+  });
+
+  it("creates Car trip when that topic is missing too", () => {
+    const plan = planEnsureCar([{ id: "t1", name: "Shop Walk" }], [word("w1", "shop", "t1")]);
+    expect(plan?.newTopicName).toBe(CAR_TRIP_TOPIC);
+    expect(plan?.add).toEqual({ english: CAR_ENGLISH, polish: CAR_POLISH });
+  });
+
+  it("is a no-op when car already exists", () => {
+    expect(planEnsureCar([{ id: "t1", name: CAR_TRIP_TOPIC }], [word("w1", "car", "t1")])).toBeNull();
   });
 });

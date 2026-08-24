@@ -179,7 +179,6 @@ export const I_FORM_WORDS: SeedWord[] = [
   { english: "I like", polish: "lubię", topic: "I-forms" },
   { english: "I need", polish: "potrzebuję", topic: "I-forms" },
   { english: "I'm going (on foot)", polish: "idę", topic: "I-forms" },
-  { english: "I'm going (by vehicle)", polish: "jadę", topic: "I-forms" },
   { english: "I'm eating / I eat", polish: "jem", topic: "I-forms" },
   { english: "I'm drinking / I drink", polish: "piję", topic: "I-forms" },
   { english: "I see", polish: "widzę", topic: "I-forms" },
@@ -206,6 +205,38 @@ export function planEnsureIForms(topics: Topic[], words: Word[]): EnsureIFormsPl
   return {
     newTopicName: hasTopic ? null : I_FORMS_TOPIC,
     add,
+  };
+}
+
+export const CAR_TRIP_TOPIC = "Car trip" satisfies SeedTopicName;
+
+const LEGACY_JADE_ENGLISH = ["I'm going (by vehicle)"] as const;
+const JADE_POLISH = "jadę";
+
+function isJadeCard(word: Word): boolean {
+  const english = englishKey(word.english);
+  if (LEGACY_JADE_ENGLISH.some((prompt) => englishKey(prompt) === english)) return true;
+  return word.polish.trim().toLocaleLowerCase("pl") === JADE_POLISH;
+}
+
+/** Remove leftover jadę cards after that I-form was dropped. */
+export function planDropJade(words: Word[]): string[] | null {
+  const deleteIds = words.filter(isJadeCard).map((word) => word.id);
+  return deleteIds.length === 0 ? null : deleteIds;
+}
+
+export type EnsureCarPlan = {
+  newTopicName: string | null;
+  add: { english: string; polish: string };
+};
+
+/** Add car / samochód when a deck never got that card. */
+export function planEnsureCar(topics: Topic[], words: Word[]): EnsureCarPlan | null {
+  if (words.some((word) => englishKey(word.english) === CAR_ENGLISH)) return null;
+  const hasTopic = topics.some((topic) => topic.name === CAR_TRIP_TOPIC);
+  return {
+    newTopicName: hasTopic ? null : CAR_TRIP_TOPIC,
+    add: { english: CAR_ENGLISH, polish: CAR_POLISH },
   };
 }
 
