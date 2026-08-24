@@ -1,5 +1,5 @@
 import { openDB, type DBSchema, type IDBPDatabase } from "idb";
-import { CAR_TRIP_TOPIC, I_FORMS_TOPIC, LEGACY_TOPIC_RENAMES, planCarTripSplit, planDropJade, planEnsureCar, planEnsureIForms, planHowToSayMerge, planWelcomePolish, SEED_TOPIC_NAMES, SEED_WORDS } from "./seed";
+import { CAR_TRIP_TOPIC, I_FORMS_TOPIC, LEGACY_TOPIC_RENAMES, planCarTripSplit, planClarifyKnowPrompts, planDropJade, planEnsureCar, planEnsureIForms, planHowToSayMerge, planWelcomePolish, SEED_TOPIC_NAMES, SEED_WORDS } from "./seed";
 import { newTopic, newWordDraft, type BackupFile, type Topic, type Word } from "./types";
 
 interface WordDB extends DBSchema {
@@ -55,6 +55,7 @@ export async function ensureSeeded(): Promise<void> {
   await mergeHowToSayCards();
   await splitCarTripCards();
   await expandWelcomePolish();
+  await clarifyKnowPrompts();
   await ensureIFormsTopic();
   await dropJadeCards();
   await ensureCarCard();
@@ -110,6 +111,18 @@ async function expandWelcomePolish(): Promise<void> {
   const db = await getDb();
   const words = await db.getAll("words");
   const updates = planWelcomePolish(words);
+  if (!updates) return;
+  const tx = db.transaction("words", "readwrite");
+  for (const word of updates) {
+    await tx.store.put(word);
+  }
+  await tx.done;
+}
+
+async function clarifyKnowPrompts(): Promise<void> {
+  const db = await getDb();
+  const words = await db.getAll("words");
+  const updates = planClarifyKnowPrompts(words);
   if (!updates) return;
   const tx = db.transaction("words", "readwrite");
   for (const word of updates) {

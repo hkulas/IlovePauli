@@ -163,6 +163,12 @@ export type SeedWord = {
 
 export const I_FORMS_TOPIC = "I-forms" satisfies SeedTopicName;
 
+export const KNOW_FACT_ENGLISH = "I know (a fact)";
+export const KNOW_PERSON_ENGLISH = "I know (a person or place)";
+
+const LEGACY_KNOW_FACT_ENGLISH = "I know";
+const LEGACY_KNOW_PERSON_ENGLISH = "I know / I'm familiar with";
+
 /**
  * Usable I-forms, not infinitives. Skip "I want" / chcę: that card is already in Shop Walk.
  */
@@ -174,8 +180,8 @@ export const I_FORM_WORDS: SeedWord[] = [
   { english: "I have to / I must", polish: "muszę", topic: "I-forms" },
   { english: "I do / I'm doing", polish: "robię", topic: "I-forms" },
   { english: "I speak / I'm saying", polish: "mówię", topic: "I-forms" },
-  { english: "I know", polish: "wiem", topic: "I-forms" },
-  { english: "I know / I'm familiar with", polish: "znam", topic: "I-forms" },
+  { english: KNOW_FACT_ENGLISH, polish: "wiem", topic: "I-forms" },
+  { english: KNOW_PERSON_ENGLISH, polish: "znam", topic: "I-forms" },
   { english: "I like", polish: "lubię", topic: "I-forms" },
   { english: "I need", polish: "potrzebuję", topic: "I-forms" },
   { english: "I'm going (on foot)", polish: "idę", topic: "I-forms" },
@@ -206,6 +212,25 @@ export function planEnsureIForms(topics: Topic[], words: Word[]): EnsureIFormsPl
     newTopicName: hasTopic ? null : I_FORMS_TOPIC,
     add,
   };
+}
+
+const KNOW_PROMPT_RENAMES: Record<string, string> = {
+  [englishKey(LEGACY_KNOW_FACT_ENGLISH)]: KNOW_FACT_ENGLISH,
+  [englishKey(LEGACY_KNOW_PERSON_ENGLISH)]: KNOW_PERSON_ENGLISH,
+};
+
+/** Split the two I know cards so wiem (facts) and znam (people/places) are obvious. */
+export function planClarifyKnowPrompts(words: Word[]): Word[] | null {
+  const taken = new Set(words.map((word) => englishKey(word.english)));
+  const updates: Word[] = [];
+  for (const word of words) {
+    const next = KNOW_PROMPT_RENAMES[englishKey(word.english)];
+    if (!next || englishKey(word.english) === englishKey(next)) continue;
+    if (taken.has(englishKey(next))) continue;
+    updates.push({ ...word, english: next });
+    taken.add(englishKey(next));
+  }
+  return updates.length === 0 ? null : updates;
 }
 
 export const CAR_TRIP_TOPIC = "Car trip" satisfies SeedTopicName;

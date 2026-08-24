@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CAR_ENGLISH, CAR_POLISH, CAR_TRIP_TOPIC, HOW_TO_SAY_ENGLISH, HOW_TO_SAY_POLISH, I_FORM_WORDS, I_FORMS_TOPIC, isHowToSayEnglish, LEGACY_TOPIC_RENAMES, planCarTripSplit, planDropJade, planEnsureCar, planEnsureIForms, planHowToSayMerge, planWelcomePolish, SEED_TOPIC_NAMES, SEED_WORDS, WELCOME_ENGLISH, WELCOME_POLISH } from "./seed";
+import { CAR_ENGLISH, CAR_POLISH, CAR_TRIP_TOPIC, HOW_TO_SAY_ENGLISH, HOW_TO_SAY_POLISH, I_FORM_WORDS, I_FORMS_TOPIC, isHowToSayEnglish, KNOW_FACT_ENGLISH, KNOW_PERSON_ENGLISH, LEGACY_TOPIC_RENAMES, planCarTripSplit, planClarifyKnowPrompts, planDropJade, planEnsureCar, planEnsureIForms, planHowToSayMerge, planWelcomePolish, SEED_TOPIC_NAMES, SEED_WORDS, WELCOME_ENGLISH, WELCOME_POLISH } from "./seed";
 import { DEFAULT_EASE, type Topic, type Word } from "./types";
 
 describe("SEED_WORDS", () => {
@@ -84,12 +84,17 @@ describe("SEED_WORDS", () => {
       expect(SEED_WORDS).toContainEqual(row);
     }
     expect(I_FORM_WORDS).toContainEqual({ english: "I can", polish: "mogę", topic: I_FORMS_TOPIC });
-    expect(I_FORM_WORDS).toContainEqual({ english: "I know", polish: "wiem", topic: I_FORMS_TOPIC });
     expect(I_FORM_WORDS).toContainEqual({
-      english: "I know / I'm familiar with",
+      english: KNOW_FACT_ENGLISH,
+      polish: "wiem",
+      topic: I_FORMS_TOPIC,
+    });
+    expect(I_FORM_WORDS).toContainEqual({
+      english: KNOW_PERSON_ENGLISH,
       polish: "znam",
       topic: I_FORMS_TOPIC,
     });
+    expect(I_FORM_WORDS.some((row) => row.english === "I know")).toBe(false);
     expect(I_FORM_WORDS).toContainEqual({
       english: "I'm going (on foot)",
       polish: "idę",
@@ -333,6 +338,42 @@ describe("planEnsureIForms", () => {
     const topic = { id: "if", name: I_FORMS_TOPIC };
     const words = I_FORM_WORDS.map((row, i) => word(`w${i}`, row.english, topic.id));
     expect(planEnsureIForms([topic], words)).toBeNull();
+  });
+});
+
+describe("planClarifyKnowPrompts", () => {
+  function word(id: string, english: string, polish: string): Word {
+    return {
+      id,
+      english,
+      polish,
+      topicId: "if",
+      createdAt: 1,
+      easeFactor: DEFAULT_EASE,
+      intervalDays: 0,
+      repetitions: 0,
+      nextReviewAt: 0,
+      learningStep: 0,
+    };
+  }
+
+  it("splits I know into a fact prompt and a person-or-place prompt", () => {
+    const fact = word("w1", "I know", "wiem");
+    const person = word("w2", "I know / I'm familiar with", "znam");
+    const other = word("w3", "I can", "mogę");
+    expect(planClarifyKnowPrompts([fact, person, other])).toEqual([
+      { ...fact, english: KNOW_FACT_ENGLISH },
+      { ...person, english: KNOW_PERSON_ENGLISH },
+    ]);
+  });
+
+  it("is a no-op when the prompts are already split", () => {
+    expect(
+      planClarifyKnowPrompts([
+        word("w1", KNOW_FACT_ENGLISH, "wiem"),
+        word("w2", KNOW_PERSON_ENGLISH, "znam"),
+      ]),
+    ).toBeNull();
   });
 });
 
