@@ -6,7 +6,7 @@ Words are stored in **this browser** (IndexedDB). GitHub Pages cannot run a serv
 
 ## Add words
 
-The first notebook pages (Shop Walk, Car trip, BRI 1, Memrise 1) load automatically the first time this browser has no words. Later pages, like I-forms, are also added on the next visit if that topic is missing.
+The first notebook pages (Shop Walk, Car trip, BRI 1, Memrise 1) load automatically the first time this browser has no words. Later pages, like I-forms and Connectors, are also added on the next visit if that topic is missing.
 
 1. Open **Words** to add more. Type the English, the Polish, pick a topic, tap **Add**.
 2. Open **Topics** to add groups (or rename the starter ones).

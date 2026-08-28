@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CAR_ENGLISH, CAR_POLISH, CAR_TRIP_TOPIC, HOW_TO_SAY_ENGLISH, HOW_TO_SAY_POLISH, I_FORM_WORDS, I_FORMS_TOPIC, isHowToSayEnglish, KNOW_FACT_ENGLISH, KNOW_PERSON_ENGLISH, LEGACY_TOPIC_RENAMES, planCarTripSplit, planClarifyKnowPrompts, planDropJade, planEnsureCar, planEnsureIForms, planHowToSayMerge, planWelcomePolish, SEED_TOPIC_NAMES, SEED_WORDS, WELCOME_ENGLISH, WELCOME_POLISH } from "./seed";
+import { CAR_ENGLISH, CAR_POLISH, CAR_TRIP_TOPIC, CONNECTOR_WORDS, CONNECTORS_TOPIC, HOW_TO_SAY_ENGLISH, HOW_TO_SAY_POLISH, I_FORM_WORDS, I_FORMS_TOPIC, isHowToSayEnglish, KNOW_FACT_ENGLISH, KNOW_PERSON_ENGLISH, LEGACY_TOPIC_RENAMES, planCarTripSplit, planClarifyKnowPrompts, planDropJade, planEnsureCar, planEnsureConnectors, planEnsureIForms, planHowToSayMerge, planWelcomePolish, SEED_TOPIC_NAMES, SEED_WORDS, WELCOME_ENGLISH, WELCOME_POLISH } from "./seed";
 import { DEFAULT_EASE, type Topic, type Word } from "./types";
 
 describe("SEED_WORDS", () => {
@@ -110,6 +110,22 @@ describe("SEED_WORDS", () => {
       expect(polishForms).not.toContain(infinitive);
     }
     expect(SEED_WORDS).toContainEqual({ english: "I want", polish: "chcieć", topic: "Shop Walk" });
+  });
+
+  it("adds connectors without duplicating a form already covered elsewhere", () => {
+    expect(SEED_TOPIC_NAMES).toContain(CONNECTORS_TOPIC);
+    expect(CONNECTOR_WORDS).toHaveLength(8);
+    for (const row of CONNECTOR_WORDS) {
+      expect(row.topic).toBe(CONNECTORS_TOPIC);
+      expect(SEED_WORDS).toContainEqual(row);
+    }
+    expect(CONNECTOR_WORDS).toContainEqual({ english: "forest", polish: "las", topic: CONNECTORS_TOPIC });
+    expect(CONNECTOR_WORDS).toContainEqual({ english: "nature", polish: "natura", topic: CONNECTORS_TOPIC });
+    expect(CONNECTOR_WORDS).toContainEqual({ english: "or", polish: "albo", topic: CONNECTORS_TOPIC });
+    expect(CONNECTOR_WORDS).toContainEqual({ english: "together", polish: "razem", topic: CONNECTORS_TOPIC });
+    expect(CONNECTOR_WORDS).toContainEqual({ english: "each other", polish: "siebie", topic: CONNECTORS_TOPIC });
+    // możemy is just the "we" form of mogę (I can), already in I-forms, so no separate card.
+    expect(CONNECTOR_WORDS.some((row) => row.polish === "możemy")).toBe(false);
   });
 });
 
@@ -436,5 +452,42 @@ describe("planEnsureCar", () => {
 
   it("is a no-op when car already exists", () => {
     expect(planEnsureCar([{ id: "t1", name: CAR_TRIP_TOPIC }], [word("w1", "car", "t1")])).toBeNull();
+  });
+});
+
+describe("planEnsureConnectors", () => {
+  function word(id: string, english: string, topicId: string): Word {
+    return {
+      id,
+      english,
+      polish: "x",
+      topicId,
+      createdAt: 1,
+      easeFactor: DEFAULT_EASE,
+      intervalDays: 0,
+      repetitions: 0,
+      nextReviewAt: 0,
+      learningStep: 0,
+    };
+  }
+
+  it("creates the topic and all connector cards on an existing deck", () => {
+    const plan = planEnsureConnectors([{ id: "t1", name: "Shop Walk" }], [word("w1", "shop", "t1")]);
+    expect(plan?.newTopicName).toBe(CONNECTORS_TOPIC);
+    expect(plan?.add).toEqual(CONNECTOR_WORDS.map(({ english, polish }) => ({ english, polish })));
+  });
+
+  it("adds only missing cards when the Connectors topic already exists", () => {
+    const topic = { id: "cx", name: CONNECTORS_TOPIC };
+    const plan = planEnsureConnectors([topic], [word("w1", "forest", topic.id), word("w2", "or", topic.id)]);
+    expect(plan?.newTopicName).toBeNull();
+    expect(plan?.add.some((row) => row.english === "forest")).toBe(false);
+    expect(plan?.add.some((row) => row.english === "together")).toBe(true);
+  });
+
+  it("is a no-op when the connectors batch is already present", () => {
+    const topic = { id: "cx", name: CONNECTORS_TOPIC };
+    const words = CONNECTOR_WORDS.map((row, i) => word(`w${i}`, row.english, topic.id));
+    expect(planEnsureConnectors([topic], words)).toBeNull();
   });
 });

@@ -1,5 +1,5 @@
 import { openDB, type DBSchema, type IDBPDatabase } from "idb";
-import { CAR_TRIP_TOPIC, I_FORMS_TOPIC, LEGACY_TOPIC_RENAMES, planCarTripSplit, planClarifyKnowPrompts, planDropJade, planEnsureCar, planEnsureIForms, planHowToSayMerge, planWelcomePolish, SEED_TOPIC_NAMES, SEED_WORDS } from "./seed";
+import { CAR_TRIP_TOPIC, CONNECTORS_TOPIC, I_FORMS_TOPIC, LEGACY_TOPIC_RENAMES, planCarTripSplit, planClarifyKnowPrompts, planDropJade, planEnsureCar, planEnsureConnectors, planEnsureIForms, planHowToSayMerge, planWelcomePolish, SEED_TOPIC_NAMES, SEED_WORDS } from "./seed";
 import { newTopic, newWordDraft, type BackupFile, type Topic, type Word } from "./types";
 
 interface WordDB extends DBSchema {
@@ -59,6 +59,7 @@ export async function ensureSeeded(): Promise<void> {
   await ensureIFormsTopic();
   await dropJadeCards();
   await ensureCarCard();
+  await ensureConnectorsTopic();
 }
 
 async function renameLegacyTopics(): Promise<void> {
@@ -176,6 +177,25 @@ async function ensureCarCard(): Promise<void> {
   }
   if (!topicId) throw new Error("Missing Car trip topic");
   await tx.objectStore("words").put(newWordDraft(plan.add.english, plan.add.polish, topicId));
+  await tx.done;
+}
+
+async function ensureConnectorsTopic(): Promise<void> {
+  const db = await getDb();
+  const [topics, words] = await Promise.all([db.getAll("topics"), db.getAll("words")]);
+  const plan = planEnsureConnectors(topics, words);
+  if (!plan) return;
+  const tx = db.transaction(["topics", "words"], "readwrite");
+  let topicId = topics.find((topic) => topic.name === CONNECTORS_TOPIC)?.id;
+  if (plan.newTopicName) {
+    const topic = newTopic(plan.newTopicName);
+    topicId = topic.id;
+    await tx.objectStore("topics").put(topic);
+  }
+  if (!topicId) throw new Error("Missing Connectors topic");
+  for (const row of plan.add) {
+    await tx.objectStore("words").put(newWordDraft(row.english, row.polish, topicId));
+  }
   await tx.done;
 }
 

@@ -1,6 +1,6 @@
 import type { Topic, Word } from "./types";
 
-export const SEED_TOPIC_NAMES = ["Shop Walk", "Car trip", "BRI 1", "Memrise 1", "I-forms"] as const;
+export const SEED_TOPIC_NAMES = ["Shop Walk", "Car trip", "BRI 1", "Memrise 1", "I-forms", "Connectors"] as const;
 
 export type SeedTopicName = (typeof SEED_TOPIC_NAMES)[number];
 
@@ -265,6 +265,47 @@ export function planEnsureCar(topics: Topic[], words: Word[]): EnsureCarPlan | n
   };
 }
 
+export const CONNECTORS_TOPIC = "Connectors" satisfies SeedTopicName;
+
+/**
+ * Prepositions and connectors that came up in real messages, not a person form of a verb
+ * already covered elsewhere (mogę already covers can, so możemy does not get its own card).
+ */
+export const CONNECTOR_WORDS: SeedWord[] = [
+  { english: "forest", polish: "las", topic: "Connectors" },
+  { english: "nature", polish: "natura", topic: "Connectors" },
+  { english: "to / until", polish: "do", topic: "Connectors" },
+  { english: "on / at / to", polish: "na", topic: "Connectors" },
+  { english: "with / from", polish: "z", topic: "Connectors" },
+  { english: "or", polish: "albo", topic: "Connectors" },
+  { english: "together", polish: "razem", topic: "Connectors" },
+  { english: "each other", polish: "siebie", topic: "Connectors" },
+];
+
+export type ConnectorAdd = {
+  english: string;
+  polish: string;
+};
+
+export type EnsureConnectorsPlan = {
+  newTopicName: string | null;
+  add: ConnectorAdd[];
+};
+
+/** Add the Connectors topic and any missing cards to a deck that already has words. */
+export function planEnsureConnectors(topics: Topic[], words: Word[]): EnsureConnectorsPlan | null {
+  const hasTopic = topics.some((topic) => topic.name === CONNECTORS_TOPIC);
+  const existingEnglish = new Set(words.map((word) => englishKey(word.english)));
+  const add = CONNECTOR_WORDS.filter((row) => !existingEnglish.has(englishKey(row.english))).map(
+    ({ english, polish }) => ({ english, polish }),
+  );
+  if (add.length === 0) return null;
+  return {
+    newTopicName: hasTopic ? null : CONNECTORS_TOPIC,
+    add,
+  };
+}
+
 /** First notebook pages. Loaded only when this browser has no words yet. */
 export const SEED_WORDS: SeedWord[] = [
   { english: "shop", polish: "sklep", topic: "Shop Walk" },
@@ -312,4 +353,5 @@ export const SEED_WORDS: SeedWord[] = [
   { english: "no problem", polish: "nie ma sprawy", topic: "Memrise 1" },
 
   ...I_FORM_WORDS,
+  ...CONNECTOR_WORDS,
 ];
