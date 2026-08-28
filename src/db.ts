@@ -1,5 +1,5 @@
 import { openDB, type DBSchema, type IDBPDatabase } from "idb";
-import { CAR_TRIP_TOPIC, CONNECTORS_TOPIC, I_FORMS_TOPIC, LEGACY_TOPIC_RENAMES, planCarTripSplit, planClarifyKnowPrompts, planDropJade, planEnsureCar, planEnsureConnectors, planEnsureIForms, planHowToSayMerge, planWelcomePolish, SEED_TOPIC_NAMES, SEED_WORDS } from "./seed";
+import { CAR_TRIP_TOPIC, CONNECTORS_TOPIC, I_FORMS_TOPIC, LEGACY_TOPIC_RENAMES, planCarTripSplit, planClarifyKnowPrompts, planDropJade, planEnsureCar, planEnsureConnectors, planEnsureIForms, planExpandGreatPolish, planExpandNeedPolish, planExpandNicePolish, planExpandThinkPolish, planHowToSayMerge, planWelcomePolish, SEED_TOPIC_NAMES, SEED_WORDS } from "./seed";
 import { newTopic, newWordDraft, type BackupFile, type Topic, type Word } from "./types";
 
 interface WordDB extends DBSchema {
@@ -55,6 +55,10 @@ export async function ensureSeeded(): Promise<void> {
   await mergeHowToSayCards();
   await splitCarTripCards();
   await expandWelcomePolish();
+  await expandGreatPolish();
+  await expandNeedPolish();
+  await expandNicePolish();
+  await expandThinkPolish();
   await clarifyKnowPrompts();
   await ensureIFormsTopic();
   await dropJadeCards();
@@ -112,6 +116,54 @@ async function expandWelcomePolish(): Promise<void> {
   const db = await getDb();
   const words = await db.getAll("words");
   const updates = planWelcomePolish(words);
+  if (!updates) return;
+  const tx = db.transaction("words", "readwrite");
+  for (const word of updates) {
+    await tx.store.put(word);
+  }
+  await tx.done;
+}
+
+async function expandGreatPolish(): Promise<void> {
+  const db = await getDb();
+  const words = await db.getAll("words");
+  const updates = planExpandGreatPolish(words);
+  if (!updates) return;
+  const tx = db.transaction("words", "readwrite");
+  for (const word of updates) {
+    await tx.store.put(word);
+  }
+  await tx.done;
+}
+
+async function expandNeedPolish(): Promise<void> {
+  const db = await getDb();
+  const words = await db.getAll("words");
+  const updates = planExpandNeedPolish(words);
+  if (!updates) return;
+  const tx = db.transaction("words", "readwrite");
+  for (const word of updates) {
+    await tx.store.put(word);
+  }
+  await tx.done;
+}
+
+async function expandNicePolish(): Promise<void> {
+  const db = await getDb();
+  const words = await db.getAll("words");
+  const updates = planExpandNicePolish(words);
+  if (!updates) return;
+  const tx = db.transaction("words", "readwrite");
+  for (const word of updates) {
+    await tx.store.put(word);
+  }
+  await tx.done;
+}
+
+async function expandThinkPolish(): Promise<void> {
+  const db = await getDb();
+  const words = await db.getAll("words");
+  const updates = planExpandThinkPolish(words);
   if (!updates) return;
   const tx = db.transaction("words", "readwrite");
   for (const word of updates) {

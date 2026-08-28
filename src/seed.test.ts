@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CAR_ENGLISH, CAR_POLISH, CAR_TRIP_TOPIC, CONNECTOR_WORDS, CONNECTORS_TOPIC, HOW_TO_SAY_ENGLISH, HOW_TO_SAY_POLISH, I_FORM_WORDS, I_FORMS_TOPIC, isHowToSayEnglish, KNOW_FACT_ENGLISH, KNOW_PERSON_ENGLISH, LEGACY_TOPIC_RENAMES, planCarTripSplit, planClarifyKnowPrompts, planDropJade, planEnsureCar, planEnsureConnectors, planEnsureIForms, planHowToSayMerge, planWelcomePolish, SEED_TOPIC_NAMES, SEED_WORDS, WELCOME_ENGLISH, WELCOME_POLISH } from "./seed";
+import { CAR_ENGLISH, CAR_POLISH, CAR_TRIP_TOPIC, CONNECTOR_WORDS, CONNECTORS_TOPIC, GREAT_ENGLISH, GREAT_POLISH, HOW_TO_SAY_ENGLISH, HOW_TO_SAY_POLISH, I_FORM_WORDS, I_FORMS_TOPIC, isHowToSayEnglish, KNOW_FACT_ENGLISH, KNOW_PERSON_ENGLISH, LEGACY_TOPIC_RENAMES, NEED_ENGLISH, NEED_POLISH, NICE_ENGLISH, NICE_POLISH, planCarTripSplit, planClarifyKnowPrompts, planDropJade, planEnsureCar, planEnsureConnectors, planEnsureIForms, planExpandGreatPolish, planExpandNeedPolish, planExpandNicePolish, planExpandThinkPolish, planHowToSayMerge, planWelcomePolish, SEED_TOPIC_NAMES, SEED_WORDS, THINK_ENGLISH, THINK_POLISH, WELCOME_ENGLISH, WELCOME_POLISH } from "./seed";
 import { DEFAULT_EASE, type Topic, type Word } from "./types";
 
 describe("SEED_WORDS", () => {
@@ -17,8 +17,8 @@ describe("SEED_WORDS", () => {
     const polish = SEED_WORDS.map((w) => w.polish);
     expect(polish).toContain("ponieważ");
     expect(polish).toContain("ręcznik");
-    expect(polish).toContain("ładne");
-    expect(polish).toContain("myśl");
+    expect(polish).toContain(NICE_POLISH);
+    expect(polish).toContain(THINK_POLISH);
     expect(polish).toContain("jakiś");
     expect(polish).toContain("trochę");
     expect(polish).toContain("włosy");
@@ -29,11 +29,12 @@ describe("SEED_WORDS", () => {
     expect(polish).toContain("mieszkać");
     expect(polish).toContain("rozumieć");
     expect(polish).toContain("ja też nie");
-    expect(polish).toContain("to świetnie!");
+    expect(polish).toContain(GREAT_POLISH);
+    expect(polish.some((p) => p.includes("!"))).toBe(false);
     expect(polish).toContain("mogę");
     expect(polish).toContain("muszę");
     expect(polish).toContain("mówię");
-    expect(polish).toContain("potrzebuję");
+    expect(polish).toContain(NEED_POLISH);
     expect(polish).toContain("idę");
     expect(polish).not.toContain("jadę");
   });
@@ -101,6 +102,7 @@ describe("SEED_WORDS", () => {
       topic: I_FORMS_TOPIC,
     });
     expect(I_FORM_WORDS.some((row) => row.polish === "jadę")).toBe(false);
+    expect(I_FORM_WORDS).toContainEqual({ english: NEED_ENGLISH, polish: NEED_POLISH, topic: I_FORMS_TOPIC });
     expect(I_FORM_WORDS.some((row) => row.english === "I want" || row.polish === "chcę")).toBe(false);
     expect(I_FORM_WORDS.some((row) => row.english.toLocaleLowerCase("en").startsWith("to "))).toBe(
       false,
@@ -309,6 +311,130 @@ describe("planWelcomePolish", () => {
 
   it("leaves a custom welcome translation alone", () => {
     expect(planWelcomePolish([word("w1", "welcome", "cześć")])).toBeNull();
+  });
+});
+
+describe("planExpandGreatPolish", () => {
+  function word(id: string, english: string, polish: string): Word {
+    return {
+      id,
+      english,
+      polish,
+      topicId: "memrise",
+      createdAt: 1,
+      easeFactor: DEFAULT_EASE,
+      intervalDays: 0,
+      repetitions: 0,
+      nextReviewAt: 0,
+      learningStep: 0,
+    };
+  }
+
+  it("drops the exclamation mark and adds to dobrze as an alternative", () => {
+    const card = word("w1", "that's great!", "to świetnie!");
+    const plan = planExpandGreatPolish([card, word("w2", "me too", "ja też")]);
+    expect(plan).toEqual([{ ...card, english: GREAT_ENGLISH, polish: GREAT_POLISH }]);
+  });
+
+  it("is a no-op when the combined polish is already stored", () => {
+    expect(planExpandGreatPolish([word("w1", GREAT_ENGLISH, GREAT_POLISH)])).toBeNull();
+  });
+
+  it("leaves a custom that's great translation alone", () => {
+    expect(planExpandGreatPolish([word("w1", "that's great!", "super")])).toBeNull();
+  });
+});
+
+describe("planExpandNeedPolish", () => {
+  function word(id: string, english: string, polish: string): Word {
+    return {
+      id,
+      english,
+      polish,
+      topicId: "if",
+      createdAt: 1,
+      easeFactor: DEFAULT_EASE,
+      intervalDays: 0,
+      repetitions: 0,
+      nextReviewAt: 0,
+      learningStep: 0,
+    };
+  }
+
+  it("accepts potrzebujemy alongside potrzebuję", () => {
+    const card = word("w1", NEED_ENGLISH, "potrzebuję");
+    const plan = planExpandNeedPolish([card, word("w2", "I can", "mogę")]);
+    expect(plan).toEqual([{ ...card, polish: NEED_POLISH }]);
+  });
+
+  it("is a no-op when both forms are already stored", () => {
+    expect(planExpandNeedPolish([word("w1", NEED_ENGLISH, NEED_POLISH)])).toBeNull();
+  });
+
+  it("leaves a custom I need translation alone", () => {
+    expect(planExpandNeedPolish([word("w1", NEED_ENGLISH, "chcę tego")])).toBeNull();
+  });
+});
+
+describe("planExpandNicePolish", () => {
+  function word(id: string, english: string, polish: string): Word {
+    return {
+      id,
+      english,
+      polish,
+      topicId: "car-topic",
+      createdAt: 1,
+      easeFactor: DEFAULT_EASE,
+      intervalDays: 0,
+      repetitions: 0,
+      nextReviewAt: 0,
+      learningStep: 0,
+    };
+  }
+
+  it("accepts ładny, ładna, and ładnie alongside ładne", () => {
+    const card = word("w1", NICE_ENGLISH, "ładne");
+    const plan = planExpandNicePolish([card, word("w2", "different", "inny")]);
+    expect(plan).toEqual([{ ...card, polish: NICE_POLISH }]);
+  });
+
+  it("is a no-op when all forms are already stored", () => {
+    expect(planExpandNicePolish([word("w1", NICE_ENGLISH, NICE_POLISH)])).toBeNull();
+  });
+
+  it("leaves a custom nice translation alone", () => {
+    expect(planExpandNicePolish([word("w1", NICE_ENGLISH, "super")])).toBeNull();
+  });
+});
+
+describe("planExpandThinkPolish", () => {
+  function word(id: string, english: string, polish: string): Word {
+    return {
+      id,
+      english,
+      polish,
+      topicId: "car-topic",
+      createdAt: 1,
+      easeFactor: DEFAULT_EASE,
+      intervalDays: 0,
+      repetitions: 0,
+      nextReviewAt: 0,
+      learningStep: 0,
+    };
+  }
+
+  it("accepts myślę, myślisz, and myśli alongside myśl", () => {
+    const card = word("w1", THINK_ENGLISH, "myśl");
+    const plan = planExpandThinkPolish([card, word("w2", "some", "jakiś")]);
+    expect(plan).toEqual([{ ...card, polish: THINK_POLISH }]);
+  });
+
+  it("is a no-op when all forms are already stored", () => {
+    expect(planExpandThinkPolish([word("w1", THINK_ENGLISH, THINK_POLISH)])).toBeNull();
+  });
+
+  it("leaves a custom think translation alone", () => {
+    expect(planExpandThinkPolish([word("w1", THINK_ENGLISH, "sądzę")])).toBeNull();
   });
 });
 

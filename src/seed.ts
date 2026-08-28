@@ -161,6 +161,30 @@ export type SeedWord = {
   topic: SeedTopicName;
 };
 
+export const GREAT_ENGLISH = "that's great";
+export const GREAT_POLISH = "to świetnie / to dobrze";
+
+const LEGACY_GREAT_ENGLISH = ["that's great!", "that's great"] as const;
+const LEGACY_GREAT_POLISH = new Set(["to świetnie!", "to świetnie"]);
+
+function isGreatCard(word: Word): boolean {
+  const english = englishKey(word.english);
+  return LEGACY_GREAT_ENGLISH.some((prompt) => englishKey(prompt) === english);
+}
+
+/** Drop the exclamation mark and accept to dobrze as well as to świetnie. */
+export function planExpandGreatPolish(words: Word[]): Word[] | null {
+  const updates = words
+    .filter(
+      (word) =>
+        isGreatCard(word) &&
+        LEGACY_GREAT_POLISH.has(word.polish.trim()) &&
+        (word.english !== GREAT_ENGLISH || word.polish !== GREAT_POLISH),
+    )
+    .map((word) => ({ ...word, english: GREAT_ENGLISH, polish: GREAT_POLISH }));
+  return updates.length === 0 ? null : updates;
+}
+
 export const I_FORMS_TOPIC = "I-forms" satisfies SeedTopicName;
 
 export const KNOW_FACT_ENGLISH = "I know (a fact)";
@@ -168,6 +192,60 @@ export const KNOW_PERSON_ENGLISH = "I know (a person or place)";
 
 const LEGACY_KNOW_FACT_ENGLISH = "I know";
 const LEGACY_KNOW_PERSON_ENGLISH = "I know / I'm familiar with";
+
+export const NEED_ENGLISH = "I need";
+export const NEED_POLISH = "potrzebuję / potrzebujemy";
+
+const LEGACY_NEED_POLISH = new Set(["potrzebuję"]);
+
+/** Accept potrzebujemy (we need) too, in case she types the we-form here. */
+export function planExpandNeedPolish(words: Word[]): Word[] | null {
+  const updates = words
+    .filter(
+      (word) =>
+        englishKey(word.english) === englishKey(NEED_ENGLISH) &&
+        LEGACY_NEED_POLISH.has(word.polish.trim()) &&
+        word.polish !== NEED_POLISH,
+    )
+    .map((word) => ({ ...word, polish: NEED_POLISH }));
+  return updates.length === 0 ? null : updates;
+}
+
+export const NICE_ENGLISH = "nice";
+export const NICE_POLISH = "ładne / ładny / ładna / ładnie";
+
+const LEGACY_NICE_POLISH = new Set(["ładne"]);
+
+/** Accept all common genders of the adjective plus the ładnie adverb form. */
+export function planExpandNicePolish(words: Word[]): Word[] | null {
+  const updates = words
+    .filter(
+      (word) =>
+        englishKey(word.english) === englishKey(NICE_ENGLISH) &&
+        LEGACY_NICE_POLISH.has(word.polish.trim()) &&
+        word.polish !== NICE_POLISH,
+    )
+    .map((word) => ({ ...word, polish: NICE_POLISH }));
+  return updates.length === 0 ? null : updates;
+}
+
+export const THINK_ENGLISH = "think";
+export const THINK_POLISH = "myśl / myślę / myślisz / myśli";
+
+const LEGACY_THINK_POLISH = new Set(["myśl"]);
+
+/** Accept the I/you/he-she conjugations too, not just the bare stem. */
+export function planExpandThinkPolish(words: Word[]): Word[] | null {
+  const updates = words
+    .filter(
+      (word) =>
+        englishKey(word.english) === englishKey(THINK_ENGLISH) &&
+        LEGACY_THINK_POLISH.has(word.polish.trim()) &&
+        word.polish !== THINK_POLISH,
+    )
+    .map((word) => ({ ...word, polish: THINK_POLISH }));
+  return updates.length === 0 ? null : updates;
+}
 
 /**
  * Usable I-forms, not infinitives. Skip "I want" / chcę: that card is already in Shop Walk.
@@ -183,7 +261,7 @@ export const I_FORM_WORDS: SeedWord[] = [
   { english: KNOW_FACT_ENGLISH, polish: "wiem", topic: "I-forms" },
   { english: KNOW_PERSON_ENGLISH, polish: "znam", topic: "I-forms" },
   { english: "I like", polish: "lubię", topic: "I-forms" },
-  { english: "I need", polish: "potrzebuję", topic: "I-forms" },
+  { english: NEED_ENGLISH, polish: NEED_POLISH, topic: "I-forms" },
   { english: "I'm going (on foot)", polish: "idę", topic: "I-forms" },
   { english: "I'm eating / I eat", polish: "jem", topic: "I-forms" },
   { english: "I'm drinking / I drink", polish: "piję", topic: "I-forms" },
@@ -321,9 +399,9 @@ export const SEED_WORDS: SeedWord[] = [
   { english: "car", polish: "samochód", topic: "Car trip" },
   { english: "trip", polish: "wycieczka", topic: "Car trip" },
   { english: "different", polish: "inny", topic: "Car trip" },
-  { english: "nice", polish: "ładne", topic: "Car trip" },
+  { english: NICE_ENGLISH, polish: NICE_POLISH, topic: "Car trip" },
   { english: "straight", polish: "prosto", topic: "Car trip" },
-  { english: "think", polish: "myśl", topic: "Car trip" },
+  { english: THINK_ENGLISH, polish: THINK_POLISH, topic: "Car trip" },
   { english: "some", polish: "jakiś", topic: "Car trip" },
   { english: "a bit", polish: "trochę", topic: "Car trip" },
   { english: "end", polish: "koniec", topic: "Car trip" },
@@ -349,7 +427,7 @@ export const SEED_WORDS: SeedWord[] = [
   { english: WELCOME_ENGLISH, polish: WELCOME_POLISH, topic: "Memrise 1" },
   { english: "me neither", polish: "ja też nie", topic: "Memrise 1" },
   { english: "me too", polish: "ja też", topic: "Memrise 1" },
-  { english: "that's great!", polish: "to świetnie!", topic: "Memrise 1" },
+  { english: GREAT_ENGLISH, polish: GREAT_POLISH, topic: "Memrise 1" },
   { english: "no problem", polish: "nie ma sprawy", topic: "Memrise 1" },
 
   ...I_FORM_WORDS,
