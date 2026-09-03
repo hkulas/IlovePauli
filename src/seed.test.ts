@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CAR_ENGLISH, CAR_POLISH, CAR_TRIP_TOPIC, CONNECTOR_WORDS, CONNECTORS_TOPIC, GREAT_ENGLISH, GREAT_POLISH, HOW_TO_SAY_ENGLISH, HOW_TO_SAY_POLISH, I_FORM_WORDS, I_FORMS_TOPIC, isHowToSayEnglish, KNOW_FACT_ENGLISH, KNOW_PERSON_ENGLISH, LEGACY_TOPIC_RENAMES, NEED_ENGLISH, NEED_POLISH, NICE_ENGLISH, NICE_POLISH, planCarTripSplit, planClarifyKnowPrompts, planDropJade, planEnsureCar, planEnsureConnectors, planEnsureIForms, planExpandGreatPolish, planExpandNeedPolish, planExpandNicePolish, planExpandThinkPolish, planHowToSayMerge, planWelcomePolish, SEED_TOPIC_NAMES, SEED_WORDS, THINK_ENGLISH, THINK_POLISH, WELCOME_ENGLISH, WELCOME_POLISH } from "./seed";
+import { CAR_ENGLISH, CAR_POLISH, CAR_TRIP_TOPIC, CONNECTOR_WORDS, CONNECTORS_TOPIC, GREAT_ENGLISH, GREAT_POLISH, HOW_TO_SAY_ENGLISH, HOW_TO_SAY_POLISH, I_FORM_WORDS, I_FORMS_TOPIC, isHowToSayEnglish, KNOW_FACT_ENGLISH, KNOW_PERSON_ENGLISH, LEGACY_TOPIC_RENAMES, NEED_ENGLISH, NEED_POLISH, NICE_ENGLISH, NICE_POLISH, planCarTripSplit, planClarifyKnowPrompts, planDropJade, planEnsureCar, planEnsureConnectors, planEnsureIForms, planExpandGreatPolish, planExpandNeedPolish, planExpandNicePolish, planExpandThinkPolish, planExpandWantPolish, planHowToSayMerge, planWelcomePolish, SEED_TOPIC_NAMES, SEED_WORDS, THINK_ENGLISH, THINK_POLISH, WANT_ENGLISH, WANT_POLISH, WELCOME_ENGLISH, WELCOME_POLISH } from "./seed";
 import { DEFAULT_EASE, type Topic, type Word } from "./types";
 
 describe("SEED_WORDS", () => {
@@ -35,6 +35,7 @@ describe("SEED_WORDS", () => {
     expect(polish).toContain("muszę");
     expect(polish).toContain("mówię");
     expect(polish).toContain(NEED_POLISH);
+    expect(polish).toContain(WANT_POLISH);
     expect(polish).toContain("idę");
     expect(polish).not.toContain("jadę");
     expect(polish).toContain("wygląda");
@@ -115,7 +116,7 @@ describe("SEED_WORDS", () => {
     for (const infinitive of ["być", "mieć", "móc", "musieć", "robić", "mówić", "iść", "jechać"]) {
       expect(polishForms).not.toContain(infinitive);
     }
-    expect(SEED_WORDS).toContainEqual({ english: "I want", polish: "chcieć", topic: "Shop Walk" });
+    expect(SEED_WORDS).toContainEqual({ english: WANT_ENGLISH, polish: WANT_POLISH, topic: "Shop Walk" });
   });
 
   it("adds connectors without duplicating a form already covered elsewhere", () => {
@@ -381,6 +382,42 @@ describe("planExpandNeedPolish", () => {
 
   it("leaves a custom I need translation alone", () => {
     expect(planExpandNeedPolish([word("w1", NEED_ENGLISH, "chcę tego")])).toBeNull();
+  });
+});
+
+describe("planExpandWantPolish", () => {
+  function word(id: string, english: string, polish: string): Word {
+    return {
+      id,
+      english,
+      polish,
+      topicId: "shop",
+      createdAt: 1,
+      easeFactor: DEFAULT_EASE,
+      intervalDays: 0,
+      repetitions: 0,
+      nextReviewAt: 0,
+      learningStep: 0,
+    };
+  }
+
+  it("accepts chcę alongside chcieć", () => {
+    const card = word("w1", WANT_ENGLISH, "chcieć");
+    const plan = planExpandWantPolish([card, word("w2", "shop", "sklep")]);
+    expect(plan).toEqual([{ ...card, polish: WANT_POLISH }]);
+  });
+
+  it("upgrades a card that only stored chcę", () => {
+    const card = word("w1", WANT_ENGLISH, "chcę");
+    expect(planExpandWantPolish([card])).toEqual([{ ...card, polish: WANT_POLISH }]);
+  });
+
+  it("is a no-op when both forms are already stored", () => {
+    expect(planExpandWantPolish([word("w1", WANT_ENGLISH, WANT_POLISH)])).toBeNull();
+  });
+
+  it("leaves a custom I want translation alone", () => {
+    expect(planExpandWantPolish([word("w1", WANT_ENGLISH, "pragnę")])).toBeNull();
   });
 });
 

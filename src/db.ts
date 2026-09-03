@@ -1,5 +1,5 @@
 import { openDB, type DBSchema, type IDBPDatabase } from "idb";
-import { CAR_TRIP_TOPIC, CONNECTORS_TOPIC, I_FORMS_TOPIC, LEGACY_TOPIC_RENAMES, planCarTripSplit, planClarifyKnowPrompts, planDropJade, planEnsureCar, planEnsureConnectors, planEnsureIForms, planExpandGreatPolish, planExpandNeedPolish, planExpandNicePolish, planExpandThinkPolish, planHowToSayMerge, planWelcomePolish, SEED_TOPIC_NAMES, SEED_WORDS } from "./seed";
+import { CAR_TRIP_TOPIC, CONNECTORS_TOPIC, I_FORMS_TOPIC, LEGACY_TOPIC_RENAMES, planCarTripSplit, planClarifyKnowPrompts, planDropJade, planEnsureCar, planEnsureConnectors, planEnsureIForms, planExpandGreatPolish, planExpandNeedPolish, planExpandNicePolish, planExpandThinkPolish, planExpandWantPolish, planHowToSayMerge, planWelcomePolish, SEED_TOPIC_NAMES, SEED_WORDS } from "./seed";
 import { newTopic, newWordDraft, type BackupFile, type Topic, type Word } from "./types";
 
 interface WordDB extends DBSchema {
@@ -57,6 +57,7 @@ export async function ensureSeeded(): Promise<void> {
   await expandWelcomePolish();
   await expandGreatPolish();
   await expandNeedPolish();
+  await expandWantPolish();
   await expandNicePolish();
   await expandThinkPolish();
   await clarifyKnowPrompts();
@@ -140,6 +141,18 @@ async function expandNeedPolish(): Promise<void> {
   const db = await getDb();
   const words = await db.getAll("words");
   const updates = planExpandNeedPolish(words);
+  if (!updates) return;
+  const tx = db.transaction("words", "readwrite");
+  for (const word of updates) {
+    await tx.store.put(word);
+  }
+  await tx.done;
+}
+
+async function expandWantPolish(): Promise<void> {
+  const db = await getDb();
+  const words = await db.getAll("words");
+  const updates = planExpandWantPolish(words);
   if (!updates) return;
   const tx = db.transaction("words", "readwrite");
   for (const word of updates) {

@@ -211,6 +211,24 @@ export function planExpandNeedPolish(words: Word[]): Word[] | null {
   return updates.length === 0 ? null : updates;
 }
 
+export const WANT_ENGLISH = "I want";
+export const WANT_POLISH = "chcieć / chcę";
+
+const LEGACY_WANT_POLISH = new Set(["chcieć", "chcę"]);
+
+/** Accept chcę on the Shop Walk I want card, not only the infinitive chcieć. */
+export function planExpandWantPolish(words: Word[]): Word[] | null {
+  const updates = words
+    .filter(
+      (word) =>
+        englishKey(word.english) === englishKey(WANT_ENGLISH) &&
+        LEGACY_WANT_POLISH.has(word.polish.trim()) &&
+        word.polish !== WANT_POLISH,
+    )
+    .map((word) => ({ ...word, polish: WANT_POLISH }));
+  return updates.length === 0 ? null : updates;
+}
+
 export const NICE_ENGLISH = "nice";
 export const NICE_POLISH = "ładne / ładny / ładna / ładnie";
 
@@ -393,7 +411,7 @@ export const SEED_WORDS: SeedWord[] = [
   { english: "shop", polish: "sklep", topic: "Shop Walk" },
   { english: "walk", polish: "spacer", topic: "Shop Walk" },
   { english: "because", polish: "ponieważ", topic: "Shop Walk" },
-  { english: "I want", polish: "chcieć", topic: "Shop Walk" },
+  { english: WANT_ENGLISH, polish: WANT_POLISH, topic: "Shop Walk" },
   { english: "buy", polish: "kupić", topic: "Shop Walk" },
   { english: "notebook", polish: "zeszyt", topic: "Shop Walk" },
   { english: "towel", polish: "ręcznik", topic: "Shop Walk" },
