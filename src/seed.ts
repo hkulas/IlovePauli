@@ -358,6 +358,10 @@ export const CONNECTOR_WORDS: SeedWord[] = [
   { english: "or", polish: "albo", topic: "Connectors" },
   { english: "together", polish: "razem", topic: "Connectors" },
   { english: "each other", polish: "siebie", topic: "Connectors" },
+  { english: "it looks", polish: "wygląda", topic: "Connectors" },
+  { english: "before", polish: "przed", topic: "Connectors" },
+  { english: "now", polish: "teraz", topic: "Connectors" },
+  { english: "after", polish: "po", topic: "Connectors" },
 ];
 
 export type ConnectorAdd = {

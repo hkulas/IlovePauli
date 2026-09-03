@@ -37,6 +37,10 @@ describe("SEED_WORDS", () => {
     expect(polish).toContain(NEED_POLISH);
     expect(polish).toContain("idę");
     expect(polish).not.toContain("jadę");
+    expect(polish).toContain("wygląda");
+    expect(polish).toContain("przed");
+    expect(polish).toContain("teraz");
+    expect(polish).toContain("po");
   });
 
   it("does not repeat the same english+polish pair", () => {
@@ -116,7 +120,7 @@ describe("SEED_WORDS", () => {
 
   it("adds connectors without duplicating a form already covered elsewhere", () => {
     expect(SEED_TOPIC_NAMES).toContain(CONNECTORS_TOPIC);
-    expect(CONNECTOR_WORDS).toHaveLength(8);
+    expect(CONNECTOR_WORDS).toHaveLength(12);
     for (const row of CONNECTOR_WORDS) {
       expect(row.topic).toBe(CONNECTORS_TOPIC);
       expect(SEED_WORDS).toContainEqual(row);
@@ -126,6 +130,10 @@ describe("SEED_WORDS", () => {
     expect(CONNECTOR_WORDS).toContainEqual({ english: "or", polish: "albo", topic: CONNECTORS_TOPIC });
     expect(CONNECTOR_WORDS).toContainEqual({ english: "together", polish: "razem", topic: CONNECTORS_TOPIC });
     expect(CONNECTOR_WORDS).toContainEqual({ english: "each other", polish: "siebie", topic: CONNECTORS_TOPIC });
+    expect(CONNECTOR_WORDS).toContainEqual({ english: "it looks", polish: "wygląda", topic: CONNECTORS_TOPIC });
+    expect(CONNECTOR_WORDS).toContainEqual({ english: "before", polish: "przed", topic: CONNECTORS_TOPIC });
+    expect(CONNECTOR_WORDS).toContainEqual({ english: "now", polish: "teraz", topic: CONNECTORS_TOPIC });
+    expect(CONNECTOR_WORDS).toContainEqual({ english: "after", polish: "po", topic: CONNECTORS_TOPIC });
     // możemy is just the "we" form of mogę (I can), already in I-forms, so no separate card.
     expect(CONNECTOR_WORDS.some((row) => row.polish === "możemy")).toBe(false);
   });
