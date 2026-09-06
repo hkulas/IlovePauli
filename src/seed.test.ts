@@ -737,7 +737,7 @@ describe("planEnsureVocabSections", () => {
 
   it("is a no-op when every section card is already present", () => {
     const topics = VOCAB_SECTIONS.map(({ topic }, i) => ({ id: `t${i}`, name: topic }));
-    const words = VOCAB_SECTIONS.flatMap(({ topic, words: sectionWords }, i) =>
+    const words = VOCAB_SECTIONS.flatMap(({ words: sectionWords }, i) =>
       sectionWords.map((row, j) => word(`w${i}-${j}`, row.english, topics[i]!.id)),
     );
     expect(planEnsureVocabSections(topics, words)).toBeNull();
