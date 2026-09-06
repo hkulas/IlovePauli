@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CAR_ENGLISH, CAR_POLISH, CAR_TRIP_TOPIC, CONNECTOR_WORDS, CONNECTORS_TOPIC, GREAT_ENGLISH, GREAT_POLISH, HOW_TO_SAY_ENGLISH, HOW_TO_SAY_POLISH, I_FORM_WORDS, I_FORMS_TOPIC, isHowToSayEnglish, KNOW_FACT_ENGLISH, KNOW_PERSON_ENGLISH, LEGACY_TOPIC_RENAMES, NEED_ENGLISH, NEED_POLISH, NICE_ENGLISH, NICE_POLISH, planCarTripSplit, planClarifyKnowPrompts, planDropJade, planEnsureCar, planEnsureConnectors, planEnsureIForms, planExpandGreatPolish, planExpandNeedPolish, planExpandNicePolish, planExpandThinkPolish, planExpandWantPolish, planHowToSayMerge, planWelcomePolish, SEED_TOPIC_NAMES, SEED_WORDS, THINK_ENGLISH, THINK_POLISH, WANT_ENGLISH, WANT_POLISH, WELCOME_ENGLISH, WELCOME_POLISH } from "./seed";
+import { BAD_WORDS, BAD_TOPIC, CAR_ENGLISH, CAR_POLISH, CAR_TRIP_TOPIC, CLOTHES_WORDS, CLOTHES_TOPIC, COMPARING_WORDS, COMPARING_TOPIC, CONNECTOR_WORDS, CONNECTORS_TOPIC, GOOD_WORDS, GOOD_TOPIC, GREAT_ENGLISH, GREAT_POLISH, HOW_TO_SAY_ENGLISH, HOW_TO_SAY_POLISH, I_FORM_WORDS, I_FORMS_TOPIC, isHowToSayEnglish, KITCHEN_WORDS, KITCHEN_TOPIC, KNOW_FACT_ENGLISH, KNOW_PERSON_ENGLISH, LEGACY_TOPIC_RENAMES, NEED_ENGLISH, NEED_POLISH, NICE_ENGLISH, NICE_POLISH, planCarTripSplit, planClarifyKnowPrompts, planDropJade, planEnsureCar, planEnsureConnectors, planEnsureIForms, planEnsureVocabSections, planExpandGreatPolish, planExpandNeedPolish, planExpandNicePolish, planExpandThinkPolish, planExpandWantPolish, planHowToSayMerge, planWelcomePolish, SEED_TOPIC_NAMES, SEED_WORDS, THINGS_WORDS, THINGS_TOPIC, THINK_ENGLISH, THINK_POLISH, VOCAB_SECTIONS, WANT_ENGLISH, WANT_POLISH, WELCOME_ENGLISH, WELCOME_POLISH } from "./seed";
 import { DEFAULT_EASE, type Topic, type Word } from "./types";
 
 describe("SEED_WORDS", () => {
@@ -137,6 +137,33 @@ describe("SEED_WORDS", () => {
     expect(CONNECTOR_WORDS).toContainEqual({ english: "after", polish: "po", topic: CONNECTORS_TOPIC });
     // możemy is just the "we" form of mogę (I can), already in I-forms, so no separate card.
     expect(CONNECTOR_WORDS.some((row) => row.polish === "możemy")).toBe(false);
+  });
+
+  it("adds the Good, Bad, Comparing, Clothes, Things, and Kitchen sections", () => {
+    expect(SEED_TOPIC_NAMES).toContain(GOOD_TOPIC);
+    expect(SEED_TOPIC_NAMES).toContain(BAD_TOPIC);
+    expect(SEED_TOPIC_NAMES).toContain(COMPARING_TOPIC);
+    expect(SEED_TOPIC_NAMES).toContain(CLOTHES_TOPIC);
+    expect(SEED_TOPIC_NAMES).toContain(THINGS_TOPIC);
+    expect(SEED_TOPIC_NAMES).toContain(KITCHEN_TOPIC);
+    expect(GOOD_WORDS).toHaveLength(7);
+    expect(BAD_WORDS).toHaveLength(6);
+    expect(COMPARING_WORDS).toHaveLength(6);
+    expect(CLOTHES_WORDS).toHaveLength(5);
+    expect(THINGS_WORDS).toHaveLength(3);
+    expect(KITCHEN_WORDS).toHaveLength(6);
+    for (const { words } of VOCAB_SECTIONS) {
+      for (const row of words) {
+        expect(SEED_WORDS).toContainEqual(row);
+      }
+    }
+    expect(GOOD_WORDS).toContainEqual({ english: "thank you", polish: "dziękuję", topic: GOOD_TOPIC });
+    expect(BAD_WORDS).toContainEqual({ english: "I don't know", polish: "nie wiem", topic: BAD_TOPIC });
+    expect(KITCHEN_WORDS).toContainEqual({
+      english: "evening",
+      polish: "wieczorem / wieczór",
+      topic: KITCHEN_TOPIC,
+    });
   });
 });
 
@@ -660,5 +687,59 @@ describe("planEnsureConnectors", () => {
     const topic = { id: "cx", name: CONNECTORS_TOPIC };
     const words = CONNECTOR_WORDS.map((row, i) => word(`w${i}`, row.english, topic.id));
     expect(planEnsureConnectors([topic], words)).toBeNull();
+  });
+});
+
+describe("planEnsureVocabSections", () => {
+  function word(id: string, english: string, topicId: string): Word {
+    return {
+      id,
+      english,
+      polish: "x",
+      topicId,
+      createdAt: 1,
+      easeFactor: DEFAULT_EASE,
+      intervalDays: 0,
+      repetitions: 0,
+      nextReviewAt: 0,
+      learningStep: 0,
+    };
+  }
+
+  it("creates all six topics and cards on an existing deck", () => {
+    const plan = planEnsureVocabSections([{ id: "t1", name: "Shop Walk" }], [word("w1", "shop", "t1")]);
+    expect(plan).toHaveLength(6);
+    expect(plan?.map((entry) => entry.topicName).sort()).toEqual([
+      BAD_TOPIC,
+      CLOTHES_TOPIC,
+      COMPARING_TOPIC,
+      GOOD_TOPIC,
+      KITCHEN_TOPIC,
+      THINGS_TOPIC,
+    ]);
+    expect(plan?.every((entry) => entry.newTopicName === entry.topicName)).toBe(true);
+    expect(plan?.find((entry) => entry.topicName === GOOD_TOPIC)?.add).toHaveLength(7);
+  });
+
+  it("adds only missing cards when some sections already exist", () => {
+    const good = { id: "good", name: GOOD_TOPIC };
+    const plan = planEnsureVocabSections(
+      [good],
+      [word("w1", "good", good.id), word("w2", "thank you", good.id)],
+    );
+    expect(plan?.some((entry) => entry.topicName === GOOD_TOPIC)).toBe(true);
+    expect(plan?.find((entry) => entry.topicName === GOOD_TOPIC)?.newTopicName).toBeNull();
+    expect(plan?.find((entry) => entry.topicName === GOOD_TOPIC)?.add.some((row) => row.english === "good")).toBe(
+      false,
+    );
+    expect(plan?.find((entry) => entry.topicName === BAD_TOPIC)?.newTopicName).toBe(BAD_TOPIC);
+  });
+
+  it("is a no-op when every section card is already present", () => {
+    const topics = VOCAB_SECTIONS.map(({ topic }, i) => ({ id: `t${i}`, name: topic }));
+    const words = VOCAB_SECTIONS.flatMap(({ topic, words: sectionWords }, i) =>
+      sectionWords.map((row, j) => word(`w${i}-${j}`, row.english, topics[i]!.id)),
+    );
+    expect(planEnsureVocabSections(topics, words)).toBeNull();
   });
 });
