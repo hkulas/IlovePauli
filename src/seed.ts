@@ -1,6 +1,19 @@
 import type { Topic, Word } from "./types";
 
-export const SEED_TOPIC_NAMES = ["Shop Walk", "Car trip", "BRI 1", "Memrise 1", "I-forms", "Connectors"] as const;
+export const SEED_TOPIC_NAMES = [
+  "Shop Walk",
+  "Car trip",
+  "BRI 1",
+  "Memrise 1",
+  "I-forms",
+  "Connectors",
+  "Good",
+  "Bad",
+  "Comparing",
+  "Clothes",
+  "Things",
+  "Kitchen",
+] as const;
 
 export type SeedTopicName = (typeof SEED_TOPIC_NAMES)[number];
 
@@ -406,6 +419,102 @@ export function planEnsureConnectors(topics: Topic[], words: Word[]): EnsureConn
   };
 }
 
+export const GOOD_TOPIC = "Good" satisfies SeedTopicName;
+export const BAD_TOPIC = "Bad" satisfies SeedTopicName;
+export const COMPARING_TOPIC = "Comparing" satisfies SeedTopicName;
+export const CLOTHES_TOPIC = "Clothes" satisfies SeedTopicName;
+export const THINGS_TOPIC = "Things" satisfies SeedTopicName;
+export const KITCHEN_TOPIC = "Kitchen" satisfies SeedTopicName;
+
+export const GOOD_WORDS: SeedWord[] = [
+  { english: "good", polish: "dobry / dobrze", topic: "Good" },
+  { english: "tasty", polish: "pyszne / smaczne", topic: "Good" },
+  { english: "easy", polish: "łatwy / łatwo", topic: "Good" },
+  { english: "happy", polish: "szczęśliwa / zadowolona", topic: "Good" },
+  { english: "beautiful", polish: "piękny / piękna", topic: "Good" },
+  { english: "right / correct", polish: "dobrze / racja", topic: "Good" },
+  { english: "thank you", polish: "dziękuję", topic: "Good" },
+];
+
+export const BAD_WORDS: SeedWord[] = [
+  { english: "difficult", polish: "trudny / trudno", topic: "Bad" },
+  { english: "problem", polish: "problem", topic: "Bad" },
+  { english: "boring", polish: "nudny / nudne", topic: "Bad" },
+  { english: "mistake", polish: "błąd", topic: "Bad" },
+  { english: "sorry", polish: "przepraszam", topic: "Bad" },
+  { english: "I don't know", polish: "nie wiem", topic: "Bad" },
+];
+
+export const COMPARING_WORDS: SeedWord[] = [
+  { english: "better", polish: "lepszy / lepiej", topic: "Comparing" },
+  { english: "worse", polish: "gorszy / gorzej", topic: "Comparing" },
+  { english: "more", polish: "więcej", topic: "Comparing" },
+  { english: "less", polish: "mniej", topic: "Comparing" },
+  { english: "the same", polish: "taki sam / to samo", topic: "Comparing" },
+  { english: "than", polish: "niż", topic: "Comparing" },
+];
+
+export const CLOTHES_WORDS: SeedWord[] = [
+  { english: "clothes", polish: "ubrania", topic: "Clothes" },
+  { english: "t-shirt", polish: "koszulka", topic: "Clothes" },
+  { english: "shoes", polish: "buty", topic: "Clothes" },
+  { english: "trousers", polish: "spodnie", topic: "Clothes" },
+  { english: "to wear", polish: "nosić", topic: "Clothes" },
+];
+
+export const THINGS_WORDS: SeedWord[] = [
+  { english: "thing / things", polish: "rzecz / rzeczy", topic: "Things" },
+  { english: "nothing", polish: "nic", topic: "Things" },
+  { english: "bag", polish: "torba", topic: "Things" },
+];
+
+export const KITCHEN_WORDS: SeedWord[] = [
+  { english: "to cook", polish: "gotować", topic: "Kitchen" },
+  { english: "morning", polish: "rano", topic: "Kitchen" },
+  { english: "evening", polish: "wieczorem / wieczór", topic: "Kitchen" },
+  { english: "night", polish: "noc", topic: "Kitchen" },
+  { english: "hungry", polish: "głodna / głodny", topic: "Kitchen" },
+  { english: "full", polish: "pełna", topic: "Kitchen" },
+];
+
+export const VOCAB_SECTIONS = [
+  { topic: GOOD_TOPIC, words: GOOD_WORDS },
+  { topic: BAD_TOPIC, words: BAD_WORDS },
+  { topic: COMPARING_TOPIC, words: COMPARING_WORDS },
+  { topic: CLOTHES_TOPIC, words: CLOTHES_WORDS },
+  { topic: THINGS_TOPIC, words: THINGS_WORDS },
+  { topic: KITCHEN_TOPIC, words: KITCHEN_WORDS },
+] as const;
+
+export type VocabSectionAdd = {
+  english: string;
+  polish: string;
+};
+
+export type EnsureVocabSectionPlan = {
+  topicName: SeedTopicName;
+  newTopicName: string | null;
+  add: VocabSectionAdd[];
+};
+
+/** Add Good, Bad, Comparing, Clothes, Things, and Kitchen topics with any missing cards. */
+export function planEnsureVocabSections(topics: Topic[], words: Word[]): EnsureVocabSectionPlan[] | null {
+  const existingEnglish = new Set(words.map((word) => englishKey(word.english)));
+  const plans: EnsureVocabSectionPlan[] = [];
+  for (const { topic, words: sectionWords } of VOCAB_SECTIONS) {
+    const add = sectionWords
+      .filter((row) => !existingEnglish.has(englishKey(row.english)))
+      .map(({ english, polish }) => ({ english, polish }));
+    if (add.length === 0) continue;
+    for (const row of add) {
+      existingEnglish.add(englishKey(row.english));
+    }
+    const hasTopic = topics.some((entry) => entry.name === topic);
+    plans.push({ topicName: topic, newTopicName: hasTopic ? null : topic, add });
+  }
+  return plans.length === 0 ? null : plans;
+}
+
 /** First notebook pages. Loaded only when this browser has no words yet. */
 export const SEED_WORDS: SeedWord[] = [
   { english: "shop", polish: "sklep", topic: "Shop Walk" },
@@ -454,4 +563,10 @@ export const SEED_WORDS: SeedWord[] = [
 
   ...I_FORM_WORDS,
   ...CONNECTOR_WORDS,
+  ...GOOD_WORDS,
+  ...BAD_WORDS,
+  ...COMPARING_WORDS,
+  ...CLOTHES_WORDS,
+  ...THINGS_WORDS,
+  ...KITCHEN_WORDS,
 ];

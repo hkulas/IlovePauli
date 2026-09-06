@@ -1,5 +1,5 @@
 import { openDB, type DBSchema, type IDBPDatabase } from "idb";
-import { CAR_TRIP_TOPIC, CONNECTORS_TOPIC, I_FORMS_TOPIC, LEGACY_TOPIC_RENAMES, planCarTripSplit, planClarifyKnowPrompts, planDropJade, planEnsureCar, planEnsureConnectors, planEnsureIForms, planExpandGreatPolish, planExpandNeedPolish, planExpandNicePolish, planExpandThinkPolish, planExpandWantPolish, planHowToSayMerge, planWelcomePolish, SEED_TOPIC_NAMES, SEED_WORDS } from "./seed";
+import { CAR_TRIP_TOPIC, CONNECTORS_TOPIC, I_FORMS_TOPIC, LEGACY_TOPIC_RENAMES, planCarTripSplit, planClarifyKnowPrompts, planDropJade, planEnsureCar, planEnsureConnectors, planEnsureIForms, planEnsureVocabSections, planExpandGreatPolish, planExpandNeedPolish, planExpandNicePolish, planExpandThinkPolish, planExpandWantPolish, planHowToSayMerge, planWelcomePolish, SEED_TOPIC_NAMES, SEED_WORDS } from "./seed";
 import { newTopic, newWordDraft, type BackupFile, type Topic, type Word } from "./types";
 
 interface WordDB extends DBSchema {
@@ -65,6 +65,7 @@ export async function ensureSeeded(): Promise<void> {
   await dropJadeCards();
   await ensureCarCard();
   await ensureConnectorsTopic();
+  await ensureVocabSections();
 }
 
 async function renameLegacyTopics(): Promise<void> {
@@ -260,6 +261,29 @@ async function ensureConnectorsTopic(): Promise<void> {
   if (!topicId) throw new Error("Missing Connectors topic");
   for (const row of plan.add) {
     await tx.objectStore("words").put(newWordDraft(row.english, row.polish, topicId));
+  }
+  await tx.done;
+}
+
+async function ensureVocabSections(): Promise<void> {
+  const db = await getDb();
+  const [topics, words] = await Promise.all([db.getAll("topics"), db.getAll("words")]);
+  const plans = planEnsureVocabSections(topics, words);
+  if (!plans) return;
+  const tx = db.transaction(["topics", "words"], "readwrite");
+  const topicIds = new Map(topics.map((topic) => [topic.name, topic.id]));
+  for (const plan of plans) {
+    let topicId = topicIds.get(plan.topicName);
+    if (plan.newTopicName) {
+      const topic = newTopic(plan.newTopicName);
+      topicId = topic.id;
+      topicIds.set(plan.topicName, topicId);
+      await tx.objectStore("topics").put(topic);
+    }
+    if (!topicId) throw new Error(`Missing ${plan.topicName} topic`);
+    for (const row of plan.add) {
+      await tx.objectStore("words").put(newWordDraft(row.english, row.polish, topicId));
+    }
   }
   await tx.done;
 }
